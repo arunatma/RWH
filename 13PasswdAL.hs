@@ -48,4 +48,4 @@ split delim str =
     in pref : case suff of
                 [] -> []
                 x  -> split delim (tail x)
-      
+    
