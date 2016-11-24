@@ -29,18 +29,42 @@ data MagazineInfo = Magazine Int String [String] deriving Show
 -- ":info <datatype>" command gives detailed information about the datatype
 -- ":type <fn or object>" command gives the type of the expression / function
 
--- The type constructor and value constructor can be of the same name
-type CustomerID = Int               -- creating a type synonymn
--- Type Synonym is just a new name for an existing (also user created) data type
--- Int and CustomerID can be used interchangeably
-type ReviewBody = String
-data BookReview = BookReview BookInfo CustomerID ReviewBody
+-- an instance of BookInfo 
+myInfo = Book 9780135072455 "Algebra of Programming"
+         ["Richard Bird", "Oege de Moor"]
+
+
+-- The type constructor and value constructor can be of the same name. Haskell
+-- identifies it differently and there is not confusion - because the context
+-- with which a value constructor or a type constructor are used will be 
+-- different.
+data BookReview = BookReview BookInfo CustomerID String         
 -- Because they are used in a different context, no ambiguity
 -- Try ":t BookReview" in ghci
 -- BookReview :: BookInfo -> CustomerID -> String -> BookReview
 -- In the above type signature, the first BookReview refers to the value
 -- constructor (the function that is used to create a new value), and the final
 -- BookReview refers to the type of the value that just got created
+
+-- Type Synonym is just a new name for an existing (also user created) data type
+-- A type synonym can be interchanged with the type it represents. It is just
+-- a better descriptive name 
+-- Int and CustomerID can be used interchangeably
+type CustomerID = Int               -- creating a type synonymn
+type ReviewBody = String
+-- Using the type synonym to create "BetterReview"
+data BetterReview = BetterReview BookInfo CustomerID ReviewBody
+
+myReview = BetterReview myInfo 5 "Review is here"
+
+-- see that the return type is Int (can also be CustomerID - no distinction)
+getCustomerId :: BetterReview -> Int
+getCustomerId (BetterReview x y z) = y
+
+custId = getCustomerId myReview     -- 5
+
+-- Creating a type synonym for a tuple, to be used easily in code.
+type BookRecord = (BookInfo, BookReview)
 
 -- Algebraic Data Types
 -- A data type with more than one value constructor
@@ -65,20 +89,55 @@ data BillingInfo = CreditCard CardNumber CardHolder Address
 -- Algebraic data type helps in differentiating otherwise identical info
 x = ("WACA", "Gabba")                   -- cricket grounds
 y = ("Chandrayaan", "Mangalyaan")       -- space probes
--- both x and y have same types here, which can be disitinguished for 
+-- both x and y have same types here, which can be distinguished for 
 -- readability and for avoid mistreating one to be another
 
 data CricketGround = CricketGround String String
 data SpaceProbe = SpaceProbe String String
 
+
+-- Algebraic data types help to identify specific piece of data, which might
+-- be otherwise undistinguishable
+a = ("Toyota", "Innova")
+b = ("Table", "Oak")
+
+data Car = Car String String
+data Furniture = Furniture String String
+
+c = Car "Toyota" "Innova"
+d = Furniture "Table" "Oak"
+
+-- In c and d, we know the two strings make up for Car data type where as in 
+-- d, these two strings make up for Furniture data type 
+-- a and b are of equivalent types, whereas c and d are not, so the chance of 
+-- accidentally mixing up these do not ever arise.
 -- Finer Example, here
 -- data types can be thought of as similar to Structure in C language
 
 -- x and y lengths
 data Cartesian2D = Cartesian2D Double Double deriving (Eq, Show)
--- angle and distance from origin
+-- distance from origin and angle
 data Polar2D = Polar2D Double Double deriving (Eq, Show)
 
+-- deriving (Eq) let us compare the values for equality, it derives the 
+-- properties of typeclass Eq
+-- A tuple (1,2) may represent Cartesian as well as a Polar coordinate
+-- At any point in time, a Cartesian coordinate not to be compared with a polar
+-- coordinate or substituted for one another. Algebraic Data Type helps here
+
+
+-- Cartesian to Polar Conversion
+polar :: Cartesian2D -> Polar2D
+polar (Cartesian2D x y) = Polar2D distance theta
+    where distance = sqrt (x^2 + y^2)
+          theta    = atan (y/x)
+          
+-- Polar to Cartesian Conversion          
+cartesian :: Polar2D -> Cartesian2D
+cartesian (Polar2D r t) = Cartesian2D x y 
+    where x = r * cos (t)
+          y = r * sin (t)
+          
 -- The following expression throws up a type error
 -- Cartesian2D (sqrt 2) (sqrt 2) == Polar2D (pi / 4) 2
 
@@ -91,25 +150,27 @@ data Polar2D' = Polar Double Double
                 | CartesianToPolar Cartesian2D'
                 deriving (Eq, Show)
 
--- Comparing the Haskell data type with C "struct"
+{-
+Comparing the Haskell data type with C "struct":
+------------------------------------------------
+"C" Language struct definition for book_info
+struct book_info {
+   int id;
+   char *name;
+   char **authors;
+};
 
--- "C" Language struct definition for book_info
--- struct book_info {
---    int id;
---    char *name;
---    char **authors;
--- };
+Haskell definition:
+data BookInfo = Book Int String [String]
+                deriving (Show)
+             
+-- The fields in a algebraic data type are anonymous and positional
+-- anonymous - means field themselves do not have any name
+-- positional - since it has no name, it needs to be referred by the position           
+-- Btw, using record syntax, we can do away with the "positional" restriction
 
--- Haskell definition
--- data BookInfo = Book Int String [String]
---                 deriving (Show)
-                
--- In Haskell, the fields are anonymous and positional
--- anonymous, because the fields are not identified by separate names
--- (though, there is record syntax, which helps in naming)
--- positional, because thef ields are identified by a fixed position
-
--- Algebraic data type can also be thought of as enumeration eqv. in C
+-}
+-- Algebraic data type are used to create data type similar to enumeration in C
 {- 
     "C" code starts
     enum roygbiv {
@@ -181,9 +242,223 @@ data Shape = Circle Vector Double | Poly [Vector]
 -- Shape is the data type (type constructor)
 -- Circle and Poly are value constructors which create a value of type "Shape"
 
-λ = 5
-அருண் = 10
+
+
+
+-- Pattern Matching
+-- 1. When a type has more than 1 value constructor, we can identify which 
+-- value constructor was used to create a value 
+-- 2. If a value constructor has data, to be able to extract data.
+
+-- Not two functions, the same function "myNot" defined as series of expressions
+-- True and False here are value constructors, depending on which one was used
+-- to construct the value, appropriate expression for "myNot" is selected
+myNot True = False
+myNot False = True
+
+-- another example of pattern matching
+sumList (x:xs) = x + sumList xs
+sumList []     = 0
+-- The way it executes is 
+-- sumList [1,2] = sumList (1:(2:[]))
+--               = 1 + sumList (2:[])
+--               = 1 + 2 + sumList []
+--               = 1 + 2 + 0
+--               = 3
+
+-- pattern matching acts as inverse of the type construction, getting the values
+-- out of the components, so sometimes called "deconstruction"
+
+-- Coming back to the book store example
+
+-- Overlap between tuple and algebraic data types                    
+myBookInfo = Book 2 "The Wealth of Networks" ["Yochai Benkler"]
+myBookTuple = (2,"The Wealth of Networks",["Yochai Benkler"])  
+
+-- Taking a value of Book or Author or Title from the BookInfo 
+-- Using Pattern matching
+bookId      (Book id title authors) = id
+bookTitle   (Book id title authors) = title 
+bookAuthors (Book id title authors) = authors
+
+-- we do not care about other entities when we look for id.
+nicerID      (Book id _     _      ) = id
+nicerTitle   (Book _  title _      ) = title
+nicerAuthors (Book _  _     authors) = authors
+
+-- The above ways of defining separate function for each field is cumbersome
+-- There is an automatic way of defining those functions, using "Record Syntax"
+
+data Customer = Customer{
+      customerID      :: CustomerID
+    , customerName    :: String
+    , customerAddress :: Address
+    } deriving (Show)
+
+-- Here customerID, customerName and customerAddress are pre-defined functions 
+-- to extract the specific values.
+
+-- the usual implementation without record syntax 
+-- code is commented because it uses the same names which are already defined.
+
+{-
+
+data Customer = Customer Int String [String]
+                deriving (Show)
+
+customerID :: Customer -> Int
+customerID (Customer id _ _) = id
+
+customerName :: Customer -> String
+customerName (Customer _ name _) = name
+
+customerAddress :: Customer -> [String]
+customerAddress (Customer _ _ address) = address
+
+-}
+
+-- btw, the record syntax are not needed  while creating a value
+customer1 = Customer 271828 "J.R. Hacker"
+            ["255 Syntax Ct",
+             "Milpitas, CA 95134",
+             "USA"]
+
+-- but, can be used to make the code more readable
+-- and to change the order of the fields
+customer2 = Customer {
+              customerID = 271828
+            , customerAddress = ["1048576 Disk Drive",
+                                 "Milpitas, CA 95134",
+                                 "USA"]
+            , customerName = "Jane Q. Citizen"
+            }             
+
+-- another example, defined in System.time
+type Month = Int
+type Day = String
+data CalendarTime = CalendarTime {
+  ctYear                      :: Int,
+  ctMonth                     :: Month,
+  ctDay, ctHour, ctMin, ctSec :: Int,
+  ctPicosec                   :: Integer,
+  ctWDay                      :: Day,
+  ctYDay                      :: Int,
+  ctTZName                    :: String,
+  ctTZ                        :: Int,
+  ctIsDST                     :: Bool
+}
+
+----------------------
+-- Parameterised types
+----------------------
+
+-- Maybe is already defined in Prelude
+data Maybe' a = Just' a | Nothing' deriving (Show)
+-- Here 'a' is the type variable. It can be Int, Char, [Char], [[Int]] anything!
+-- Maybe is a parameterised type; it takes another type as parameter.
+
+-- Maybe is polymorphic, where as Maybe Int or Maybe [Bool] is a distinct type.
+-- It may as well be Maybe (Maybe [Char])
+wrapped = Just (Just "wrapped")
+
+-- Parameterised types are similar to "templates" in C++ or "generics" in Java
+
+------------------
+-- Recursive types 
+------------------
+-- A type defined in terms of itself.
+data List a = Cons a (List a) 
+            | Nil
+              deriving (Show)
+              
+-- List has a type variable 'a' and has two type constructor "Cons" and "Nil"
+
+-- Cons as a data or value constructor takes two inputs:
+-- a value of type 'a' and another of type (List a) and gives (List a)
+
+-- List appears both on left and right of "=" sign, a type referring itself.
+
+nilList = Nil 
+valList1 = Cons 0 Nil
+valList2 = Cons 1 (Cons 0 Nil)
+
+-- The List data type defined above is equivalent and identical to the built
+-- in list [].  List and [] are not identical actually, they are "isomorphic" 
+-- having the same shape
+fromList :: [a] -> List a
+fromList (x:xs) = Cons x (fromList xs)
+fromList []     = Nil
+
+toList :: List a -> [a]
+toList (Cons x xs) = x:(toList xs)
+toList Nil         = []
                
+-- Recursive Binary Tree
+data Tree a = Node a (Tree a) (Tree a)
+            | Empty
+              deriving (Show)
+              
+{-
+
+An equivalent of the same in Java using generics.
+
+class Tree<A>
+{
+    A value;
+    Tree<A> left;
+    Tree<A> right;
+
+    public Tree(A v, Tree<A> l, Tree<A> r)
+    {
+        value = v;
+        left = l;
+        right = r;
+    }
+}
+
+-- Java lets us use "null" in constructing trees, when there is no sub tree.
+
+class Example 
+{
+    static Tree<String> simpleTree()
+    {
+        return new Tree<String>(
+            "parent",
+            new Tree<String>("left leaf", null, null),
+            new Tree<String>("right leaf", null, null));
+    }
+}
+
+-}              
+  
+-- We can create the same tree with two leaves, in Haskell using the Empty 
+-- data constructor that we defined for Tree 
+-- null in Java works anywhere, "Empty" is a data constructor specific to "Tree"
+
+simpleTree = Node "simple tree" (Node "left leaf" Empty Empty)
+                           (Node "right leaf" Empty Empty)  
+  
+
+-- Defining Tree type with just one constructor (similar to Java)
+-- Using Maybe type instead of "Empty" data constructor.
+
+{-
+Todo:  Make such a tree and make fromTree and toTree functions.
+Currently the following code do not work.
+
+data Tree' a = Maybe (Node' a (Tree' a) (Tree' a)) deriving (Show)
+
+simpleTree' = Just (Node' "simple tree" (Just (Node' "left" Nothing Nothing))
+                            (Just (Node' "right" Nothing Nothing)))
+                            
+-- Tree to Tree' conversion                            
+fromTree :: Tree a -> Tree' a
+fromTree (Node a l r)   = Just (Node' a (fromTree l) (fromTree r))
+fromTree Empty          = Nothing        
+-}
+
+
+
 -- Exercises from
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
 -- Repeating the questions part in this file, for easy read.
@@ -223,13 +498,19 @@ checkPalindrome xs = xs == (reverse xs)
 -- Create a function that sorts a list of lists based on the length of each 
 -- sublist. (You may want to look at the sortBy function from the Data.List 
 -- module.)
-sortLen xs ys = compare (length xs) (length ys)
-sortListLen = sortBy sortLen
+--sortLen xs ys = compare (length xs) (length ys)
+--sortListLen = sortBy sortLen
 
 -- Define a function that joins a list of lists together using a separator value
 -- intersperse' ',' ["foo","bar","baz","quux"] == "foo,bar,baz,quux"
 intersperse' :: a -> [[a]] -> [a]
-intersperse' x ys = intercalate [x] ys
+intersperse' x [] = []
+intersperse' x (y:ys) = if null ys 
+                        then y 
+                        else y ++ ([x] ++ intersperse' x ys)
+
+intersperse'' :: a -> [[a]] -> [a]
+intersperse'' x ys = intercalate [x] ys
 
 
 -- Using the binary tree type that we defined earlier in this chapter, write a 
@@ -237,10 +518,6 @@ intersperse' x ys = intercalate [x] ys
 -- largest number of hops from the root to an Empty. For example, the tree 
 -- Empty has height zero; Node "x" Empty Empty has height one; 
 -- Node "x" Empty (Node "y" Empty Empty) has height two; and so on
-data Tree a = Node a (Tree a) (Tree a)
-            | Empty
-              deriving (Show)
-
 -- treeHeight :: Tree -> Int              
 
 
@@ -273,3 +550,5 @@ data Direction = Lt | St | Rt deriving (Show, Eq, Ord)
 -- algorithm for the convex hull of a set of 2D points. You can find good 
 -- description of what a convex hull. is, and how the Graham scan algorithm 
 -- should work, on Wikipedia.
+
+
