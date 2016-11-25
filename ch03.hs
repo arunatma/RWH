@@ -458,6 +458,39 @@ fromTree Empty          = Nothing
 -}
 
 
+-- Reporting Errors
+
+-- :t error 
+-- error :: [Char] -> a 
+-- The idea that the return type can be "any type" is that you can call it 
+-- anywhere and it will always have the right type
+
+-- getting the second character in the list 
+mySecond :: [a] -> a
+mySecond xs = if null (tail xs)
+              then error "List is too short"
+              else head (tail xs)
+              
+-- Disadvantages of using "error"
+-- You will not be allowed to recover and the program is terminated
+
+-- Controlled Approach
+-- Use "Maybe"              
+
+safeSecond :: [a] -> Maybe a
+safeSecond xs = if null (tail xs)
+                then Nothing
+                else Just (head (tail xs))
+
+
+-- Improving the readability with pattern matching
+tidySecond :: [a] -> Maybe a
+tidySecond (_:x:_) = Just x   -- Pattern matches the list with at least 2 chars
+tidySecond _       = Nothing  -- This matches the rest
+
+
+               
+                
 
 -- Exercises from
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
