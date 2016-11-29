@@ -1,4 +1,4 @@
--- {-# OPTIONS_GHC -Wall #-}
+{- # OPTIONS_GHC -fwarn-name-shadowing # -}
 
 -- Chapter 3. Defining Types, Streamlining Functions    
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
@@ -489,10 +489,101 @@ tidySecond (_:x:_) = Just x   -- Pattern matches the list with at least 2 chars
 tidySecond _       = Nothing  -- This matches the rest
 
 
-
+-- Local Variables
+-- usage of "let .. in"
+lend amount balance = let reserve = 100 
+                          newBalance = balance - amount
+                      in if balance < reserve
+                         then Nothing
+                         else Just newBalance
                
-                
+-- whatever follows "in" is the expression that will be evaluated and will be 
+-- treated as the value of the expression.
+-- the "in" blocks uses some variables which are defined in the "let" block
 
+-- Lazy evaluation:
+-- The names in the "let" block are assigned expressions which are evaluated 
+-- only when in need. i.e. the "in" block getting called, which uses them.
+-- Example: If balance is less than reserve, "newBalance" will not be computed.
+
+-- Names assigned in a "let" block can be used only in the following "in" block
+
+-- Nesting of "let .. in" blocks 
+foo = let a = 1
+      in let b = 2
+         in a + b
+
+{- The way the expression unfolds
+foo = let b = 2 
+      in a + b 
+
+foo = a + b
+
+foo = a + 2
+
+foo = let a = 1 
+      in a + 2 
+      
+foo = 1 + 2
+
+foo = 3      
+       
+-}       
+
+-- Using the same names in nested let
+-- The inner "x" hides / shadows the outer "x" ("shadowing")
+bar = let x = 1
+    in ((let x = "foo" in x), x)
+{-
+bar = ((let x = "foo" in x), x)
+
+bar = ("foo", x)
+
+bar = let x = 1
+      in ("foo", x)
+      
+bar = ("foo", 1)      
+
+-}
+
+-- Shadowing function parameters!
+quux a = let a = "foo"
+         in a ++ "eek!"
+         
+-- :t quux 
+-- quux :: t -> [Char]
+-- The input is ignored (so, can be of any type), return value is "fooeek!"
+-- quux [[3], []] = "fooeek!"
+-- quux 1 = "fooeek!"
+-- quux 'a' = "fooeek!"
+
+-- Use "fwarn-name-shadowing" to detect these while compiling. Used at top
+-- Can also be enabled with *Main> :set -Wall in GHCI 
+
+-- usage of "where"
+-- "where" also helps in defining the local variables.
+-- the names in "where" block apply to the code that precedes it 
+-- Same lending example using "where" 
+lend2 amount balance = if balance < reserve
+                       then Nothing
+                       else Just newBalance
+    where reserve = 100 
+          newBalance = balance - amount
+
+-- Local functions
+pluralise :: String -> [Int] -> [String]
+pluralise word counts = map plural counts
+    where plural 0 = "no " ++ word ++ "s"
+          plural 1 = "one " ++ word
+          plural n = show n ++ " " ++ word ++ "s"
+-- Here, "plural" is a local function whose scope is within the "pluralise" fn.
+-- See also "word" whose scope is throughout the "pluralise" function.
+-- Similar to functions, the variables defined at the top of the source file
+-- becomes a global variable 
+
+
+          
+          
 -- Exercises from
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
 -- Repeating the questions part in this file, for easy read.
