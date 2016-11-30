@@ -576,18 +576,145 @@ pluralise word counts = map plural counts
     where plural 0 = "no " ++ word ++ "s"
           plural 1 = "one " ++ word
           plural n = show n ++ " " ++ word ++ "s"
+
 -- Here, "plural" is a local function whose scope is within the "pluralise" fn.
 -- See also "word" whose scope is throughout the "pluralise" function.
 -- Similar to functions, the variables defined at the top of the source file
 -- becomes a global variable 
 
+-- White space and offside rules in Haskell
+-- Haskell treats white spaces as cue to parse and compile 
+-- Indenting the following testFn (to start at col 11), makes it part of 
+-- "pluralise" defined above
+testFn 0 = 0
+testFn n = n + 1
+-- Indent the same to 8 spaces instead of 10, you get a compiler error on parse
 
+-- A blank line (or comment) or further indents are treated as continuation 
+-- of previous expression
+-- Same indent: Another expression at the same level 
+-- Less indent: Super level 
+indentExample = let firstDefinition = "blah " ++ 
+                    -- a comment-only line is treated as empty
+                        "continuation blah "
+                    -- we reduce the indentation, so this is a new definition
+                    secondDefinition = "second definition " ++ 
+                        "continuation of same"
+                -- less indent: so beginning of another block.
+                in firstDefinition ++ secondDefinition
+
+-- Note in the following expression, both readers and compilers get a clue 
+-- that a is visible only in the inner "let" and not available outside.
+indentLet = let b = 2
+                c = True
+            in let a = b
+               in (a, c)
+
+-- y is visible when x is assigned and x is visible (and y not visible) outside.       
+indentWhere = x
+    where x = y
+            where y = 2
+
+-- Always use spaces instead of tabs for indenting (works seamlessly across 
+-- unix and windows) or across machines or editors where tab settings are diff.
+
+-- Way around offside rule.
+foo1 = let a = 1
+           b = 2    -- (make sure this starts at the same level as "a")
+           c = 3
+       in a + b + c
+
+-- Without braces, the following would fail.
+foo2 = let {a = 1; b = 2; 
+    c = 3}
+       in a + b + c
+       
           
+-- case..of expressions
+-- An example from Data.Maybe package.
+fromMaybe' defVal wrapped = 
+    case wrapped of
+        Nothing    -> defVal
+        Just value -> value
+-- case followed by some arbitrary expression; here "wrapped"
+-- pattern matching is performed on result of the expression.
+-- "of" indicates the end of the case expression and the beginning of 
+-- the block containing "patterns" and "expressions" separated by "->"
+-- The expressions in the block following "of" should be of same type.
+-- Only the expression for which the pattern is matched gets evaluated
+-- Pattern matching happens from top to bottom
+-- So the expression following the first successful match will be the result.
+-- A failed pattern match throws runtime error.
+-- Use "_" as a final pattern to match everything 
+        
+-- Mistakes using the case expressions         
+data Fruit = Apple | Banana | OtherFruit deriving (Show)
+apple = "apple"
+banana = "banana"
+
+{-
+1. Using variable names for patterns 
+whichFruit :: String -> Fruit
+whichFruit f = 
+    case f of
+        apple  -> Apple
+        banana -> Banana
+-}      
+  
+-- pattern match cannot have variable names. So, the above will fail
+whichFruit :: String -> Fruit
+whichFruit f = 
+    case f of
+        "apple"  -> Apple
+        "banana" -> Banana
+        _        -> OtherFruit
+        
+{-
+2. Trying to compare for equality 
+bad_nodesAreSame (Node a _ _) (Node a _ _) = Just a
+bad_nodesAreSame _            _            = Nothing
+
+-- Intention: Two input nodes. Return the node if both nodes are same.
+-- See below - this is resoved by the use of "guards"
+-}
+
+-- case..of pattern matching helps to match against fixed value 
+-- To make the pattern matching more expressive and conditional, use "guards"
+nodesAreSame (Node a _ _) (Node b _ _)
+    | a == b     = Just a
+nodesAreSame _ _ = Nothing
+-- A pattern can be followed by zero or more guards, each an expression of 
+-- type Bool. A guard is introduced by a | symbol.
+-- If a pattern matches, each guard associated with that pattern is evaluated,
+-- in the order in which they are written. If a guard succeeds, 
+-- the expression associated with that guard is used as the result.
+-- If no guard succeeds, pattern matching moves on to the next pattern.
+-- In a guard expression, all variables bound in the pattern can be used.
+
+-- Rewritten lend example:
+lend3 amount balance
+     | amount <= 0            = Nothing
+     | amount > reserve * 0.5 = Nothing
+     | otherwise              = Just newBalance
+    where reserve    = 100
+          newBalance = balance - amount
+-- Here, "otherwise" is a variable bound to true. Equivalent of "_" pattern 
+-- in "case..of". When all else fails the value against "otherwise" is assigned
+
+myDrop n xs = if n <= 0 || null xs
+              then xs
+              else myDrop (n - 1) (tail xs)
+              
+-- Rewritten using pattern and guards (much easier to read)
+niceDrop n xs | n <= 0      = xs              
+niceDrop _ []               = []
+niceDrop n (_:xs)           = niceDrop (n - 1) xs
+
+
           
 -- Exercises from
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
 -- Repeating the questions part in this file, for easy read.
-
 
 -- Write a function that computes the number of elements in a list. 
 -- To test it, ensure that it gives the same answers as the standard 
@@ -634,17 +761,28 @@ intersperse' x (y:ys) = if null ys
                         then y 
                         else y ++ ([x] ++ intersperse' x ys)
 
-intersperse'' :: a -> [[a]] -> [a]
-intersperse'' x ys = intercalate [x] ys
+intersperse2 :: a -> [[a]] -> [a]
+intersperse2 x ys = intercalate [x] ys
 
+intersperse3 :: a -> [[a]] -> [a]
+intersperse3 _ [] = []
+intersperse3 _ [y] = y
+intersperse3 x (y:ys) = y ++ ([x] ++ intersperse3 x ys)
 
 -- Using the binary tree type that we defined earlier in this chapter, write a 
 -- function that will determine the height of the tree. The height is the 
 -- largest number of hops from the root to an Empty. For example, the tree 
 -- Empty has height zero; Node "x" Empty Empty has height one; 
 -- Node "x" Empty (Node "y" Empty Empty) has height two; and so on
--- treeHeight :: Tree -> Int              
 
+--data Tree a = Node a (Tree a) (Tree a)
+--            | Empty
+--              deriving (Show)
+treeHeight :: Tree a -> Int
+treeHeight Empty = 0
+treeHeight (Node a l r) 
+    | treeHeight l > treeHeight r = 1 + treeHeight l
+    | otherwise                   = 1 + treeHeight r
 
 -- Consider three two-dimensional points a, b, and c. If we look at the angle 
 -- formed by the line segment from a to b and the line segment from b to c, it 
@@ -654,22 +792,23 @@ data Direction = Lt | St | Rt deriving (Show, Eq, Ord)
 
 -- Write a function that calculates the turn made by three 2D points and 
 -- returns a Direction.
-
--- Look into http://en.wikipedia.org/wiki/Graham_scan for more details                   
---getDirection :: Cartesian2D -> Cartesian2D -> Cartesian2D -> Direction
---getDirection a b c 
-   -- | crsprd > 0  = Lt
-   -- | crsprd == 0 = St
-   -- | crsprd < 0  = Rt
-   -- where crsprd =  (x b - x a) * (y c - y a) - (y b - y a) * (x c - x a)
+-- Look into http://en.wikipedia.org/wiki/Graham_scan for more details
+getDirection :: Cartesian2D -> Cartesian2D -> Cartesian2D -> Direction
+getDirection a b c 
+   | ccw > 0  = Lt
+   | ccw == 0 = St
+   | ccw < 0  = Rt
+   where ccw = (x b - x a) * (y c - y a) - (y b - y a) * (x c - x a)
+         x (Cartesian2D m _) = m
+         y (Cartesian2D _ n) = n
    
 -- Define a function that takes a list of 2D points and computes the direction 
 -- of each successive triple. Given a list of points [a,b,c,d,e], it should 
 -- begin by computing the turn made by [a,b,c], then the turn made by [b,c,d], 
 -- then [c,d,e]. Your function should return a list of Direction.   
--- getDirList :: [Cartesian2D] -> [Direction]
--- getDirList (a:b:c:xs) = (getDirection a b c) : getDirList (b:c:xs)
--- getDirList _          = []
+getDirList :: [Cartesian2D] -> [Direction]
+getDirList (a:b:c:xs) = (getDirection a b c) : getDirList (b:c:xs)
+getDirList _          = []
 
 -- Using the code from the preceding three exercises, implement Graham's scan 
 -- algorithm for the convex hull of a set of 2D points. You can find good 
