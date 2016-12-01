@@ -1,4 +1,4 @@
-{- # OPTIONS_GHC -fwarn-name-shadowing # -}
+{-# OPTIONS_GHC -fwarn-name-shadowing #-}
 
 -- Chapter 3. Defining Types, Streamlining Functions    
 -- http://book.realworldhaskell.org/read/defining-types-streamlining-functions.html
