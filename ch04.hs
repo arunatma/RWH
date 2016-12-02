@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall #-}
+--{-# OPTIONS_GHC -Wall #-}
 import Data.List
 import Data.Char
 
@@ -75,6 +75,82 @@ fixLines input = unlines (splitLines input)
     $ file gpl-3.0.txt
     gpl-3.0.txt: ASCII English text, with CRLF line terminators    
 -}
+
+
+-- Usual function notation: prefix - writing name of the function followed by
+-- the arguments
+-- infix - writing the function name between the arguments Ex: +, * etc
+
+-- data Pair a b = Pair a b deriving (Show)     -- Pair 1 2
+data a `Pair` b = a `Pair` b deriving (Show)    -- 1 `Pair` 2
+
+pair1 = Pair 1 2
+pair2 = True `Pair` 2          -- using the value constructor fn as infix
+
+-- using the elem function (to find that an element is part of the given list)
+elem1 = elem 'a' "arunram"
+elem2 = elem 1 [1, 2, 3]
+
+-- using as infix 
+elem3 = 3 `elem` [1, 2, 4, 8]
+
+-- Special functions from Data.List (to check for prefix or infix)
+infix1 = "hay" `isInfixOf` "Make hay while the sun shines"
+prefix1 = "Learn" `isPrefixOf` "Learn you a haskell"
+suffix1 = [2,3] `isSuffixOf` [1,2,3]
+
+-- List Functions
+
+-- ghci> :module +Data.List
+-- ghci> :m +Data.List
+
+list1 = length [1,2,3,4,5]                      -- 5
+list2 = null []                                 -- True
+list3 = head [1,2,3]                            -- 1        [a] -> a
+list4 = tail [1,2,3]                            -- [2,3]    [a] -> [a]
+list5 = last [1,2,3]                            -- 3        [a] -> a
+list6 = init [1,2,3]                            -- [1,2]    [a] -> [a]
+    
+list7 = head []                                 -- throws Error 
+
+dumbHead xs = if length xs > 0 then head xs else 'z'  
+list8 = dumbHead []                             -- 'z'
+-- but this dumbHead is very costly. To find length, entire list to be parsed
+
+goodHead xs = if null xs then 'z' else head xs
+list9 = goodHead []                             -- 'z'
+
+-- using pattern matching 
+goodHead2 (x:_) = x
+goodHead2 []    = 'z'
+
+list10 = goodHead2 []                           -- 'z'
+
+-- Partial functions
+-- Functions that have return values defined only for a subset of inputs 
+-- 'head' is a partial function. It does not have value defined for []
+
+-- Total Functions
+-- Functions where all values in input domain have return values defined
+
+-- A tip: use "unsafe" prefix when defining partial functions, so you know that 
+-- you may get a run time error when a non defined input is applied to the fn.
+
+-- append (++)
+list11 = [1,2] ++ [3,4]                         -- [1,2,3,4]
+list12 = [True] ++ []                           -- [True]
+
+-- concat
+list13 = concat [[1,2], [3], [4,5,6]]           -- [1,2,3,4,5,6]
+list14 = concat ["a", "beautiful", "river"]     -- "abeautifulriver"
+
+list15 = reverse [1,2,3]                        -- [3,2,1]
+list16 = reverse "hello"                        -- "olleh"
+
+
+
+
+
 
 -- Exercises from
 -- http://book.realworldhaskell.org/read/functional-programming.html
