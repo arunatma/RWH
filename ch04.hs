@@ -148,7 +148,8 @@ list15 = reverse [1,2,3]                        -- [3,2,1]
 list16 = reverse "hello"                        -- "olleh"
 
 
-
+-- and :: [Bool] -> Bool
+list17 = and [True, False, True] 				-- False
 
 
 
