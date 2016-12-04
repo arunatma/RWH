@@ -149,7 +149,21 @@ list16 = reverse "hello"                        -- "olleh"
 
 
 -- and :: [Bool] -> Bool
-list17 = and [True, False, True] 				-- False
+list17 = and [True, False, True]                -- False
+
+-- or :: [Bool] -> Bool
+list18 = or [True, False, False]                -- True
+list19 = or []                                  -- False
+
+-- all :: (a -> Bool) -> [a] -> Bool
+-- Test whether all elements in a list satisfying a criteria
+list20 = all odd [1, 3, 5, 7]                   -- True
+list21 = all odd [1, 3, 6, 9]                   -- False
+
+-- any :: (a -> Bool) -> [a] -> Bool
+-- Test whether any of the elements in a list satisfying a criteria
+list22 = any even [1, 3, 5, 7]                   -- False
+list23 = any even [1, 3, 6, 9]                   -- True
 
 
 
