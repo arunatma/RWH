@@ -162,11 +162,93 @@ list21 = all odd [1, 3, 6, 9]                   -- False
 
 -- any :: (a -> Bool) -> [a] -> Bool
 -- Test whether any of the elements in a list satisfying a criteria
-list22 = any even [1, 3, 5, 7]                   -- False
-list23 = any even [1, 3, 6, 9]                   -- True
+list22 = any even [1, 3, 5, 7]                  -- False
+list23 = any even [1, 3, 6, 9]                  -- True
+
+-- Working with sub lists
+-- take and drop functions
+list24 = take 3 "india"                         -- "ind"
+list25 = drop 2 "india"                         -- "dia"
+list26 = take 5 [1,2..]                         -- [1,2,3,4,5]
+list27 = take 10 [100,99..]                     -- [100,98..91]
+list28 = drop 1 [True, False, False]            -- [False, False]
+
+-- splitAt : combination of both take and drop functions
+-- Returns a tuple with both lists
+splitAtEx1 = splitAt 2 "india"                  -- ("in", "dia")
+
+-- A possible definition of splitAt function 
+splitAt' :: Int -> [a] -> ([a], [a])
+splitAt' n xs = (take n xs, drop n xs)
+
+-- takeWhile, dropWhile functions
+-- Both take a predicate and list as input 
+-- Applies predicate to each element checks for True
+-- takeWhile takes as long as the predicate returns True 
+-- dropWhile drops as long as the predicate returns True
+list29 = takeWhile odd [1,3,5,6,8,9,11]         -- [1, 3, 5]
+list30 = dropWhile odd [1,3,5,6,8,9,11]         -- [6, 8, 9, 11]
+
+-- span : combination of both takeWhile and dropWhile functions
+-- Returns a tuple with both lists
+spanEx1 = span odd [1,3,5,6,8,9,11]             -- ([1,3,5], [6,8,9,11])
+
+-- A possible definition of span function
+span' :: (a -> Bool) -> [a] -> ([a], [a])
+span' pred xs = (takeWhile pred xs, dropWhile pred xs)
 
 
+-- Searching the lists
+-- elem : returns True when the element is present in the list 
+-- notElem : returns True when the element is not present in the list 
+elem4 = 4 `elem` [1,2,3,4]                      -- True
+elem5 = 5 `notElem` [1,2,3,4]                   -- True
+elem6 = not (elem 5 [1,2,3,4])                  -- True 
 
+-- filter: retruns all the elements which match the given predicate
+filterEx1 = filter odd [1,2,3,4,5,6]                    -- [1,3,5]
+filterEx2 = filter (\x -> notElem x "aeiou") "Haskell"  -- "Hskll"
+
+-- Already seen:
+-- isPrefixOf
+-- isSuffixOf
+-- isInfixOf
+
+-- Working with several lists
+-- zip: takes two lists and zips them together in the form of pairs
+-- output: list of pairs 
+zipEx1 = zip "arun" "ram"                   -- [('a','r'), ('r','a'), ('u','m')]
+zipEx2 = zip "Me" [1,2,3,4,5]               -- [('M', 1), ('e', 2)]
+
+-- zipWith
+-- given an operator, so it merges the elements in the tuple with that operator
+-- zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipEx3 = zipWith (+) [1,2,3] [4,5,6]        -- [5,7,9]
+zipEx4 = zipWith (,) "Me" [1,2,3,4,5]       -- [('M', 1), ('e', 2)]
+
+-- So effectively "zip" written using "zipWith" function 
+zip' = zipWith (,)
+
+-- "zipWith" written using "zip"
+zipWith' f xs ys = map (\(x,y) -> f x y) $ zip xs ys
+
+-- Haskell Defines to zip multiple lists 
+-- zip3 to zip7 available to merge 3 lists  to 7 lists.
+-- zipWith3 to zipWith7 available to operate on 3 lists to 7 lists.
+
+-- Special string functions
+-- lines and unlines 
+line3 = lines "foo\nbar"                    -- ["foo", "bar"]
+line4 = unlines ["foo", "bar"]              -- "foo\nbar\n"
+-- unlines always add \n to each string inside the list
+
+wordEx1 = words "the  \r  quick \t  brown\n\n\nfox"
+wordEx2 = unwords wordEx1                   -- "the quick brown fox"
+-- unwords just put a single white space between strings and note that there is
+-- no white space at the end. That way, the operation of unlines and unwords 
+-- differ in how they treat the last element.
+
+--------------------------------------------------------------------------------
 -- Exercises from
 -- http://book.realworldhaskell.org/read/functional-programming.html
 -- Repeating the questions part in this file, for easy read.
@@ -198,7 +280,7 @@ safeInit xs = Just (init' xs)
 
 init' :: [a] -> [a]
 init' [] = []           -- This line will never be used when called by safeInit
-init' [_] = []
+init' _:[] = []
 init' (x:xs) = x : init' xs
 
 sTail :: [a] -> [a]
@@ -217,8 +299,17 @@ separateItems _ [] = []
 separateItems f xs =  (fst broken) : separateItems f (sTail (snd broken))
                         where broken = break f xs
 
+-- Using the command framework from the section called “A simple command line 
+-- framework”, write a program that prints the first word of each line of its 
+-- input. 
+
+-- To do this one.
+
+-- Write a program that transposes the text in a file. For instance, it should 
+-- convert "hello\nworld\n" to "hw\neo\nlr\nll\nod\n". 
 makeTranspose :: String -> String
 makeTranspose x = unlines $ transpose $ lines x
+--------------------------------------------------------------------------------
 
 -- Use a fold (choosing the appropriate fold will make your code much simpler) 
 -- to rewrite and improve upon the asInt function from the section called 
