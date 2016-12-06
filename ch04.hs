@@ -1,6 +1,8 @@
 --{-# OPTIONS_GHC -Wall #-}
 import Data.List
 import Data.Char
+import Data.Char (ord)
+import Data.Bits (shiftL, (.&.), (.|.))
 
 -- Have a look at ch04InteractWith.hs
 -- The program takes command line arguments: Input File and Output File 
@@ -280,7 +282,7 @@ safeInit xs = Just (init' xs)
 
 init' :: [a] -> [a]
 init' [] = []           -- This line will never be used when called by safeInit
-init' _:[] = []
+init' (_:[]) = []
 init' (x:xs) = x : init' xs
 
 sTail :: [a] -> [a]
@@ -311,6 +313,227 @@ makeTranspose :: String -> String
 makeTranspose x = unlines $ transpose $ lines x
 --------------------------------------------------------------------------------
 
+-- How to think about loops?
+
+-- No loops at all in Haskell.
+-- Looping kind of operations to be done using other means. (explicit recursion,
+-- folds, transform each element to something else, filter a set of inputs 
+-- based on a condition)
+
+-- 1. Explicit Recursion
+
+-- C function that takes string input ("23") and converts to integer (23).
+{-
+
+int as_int(char *str)
+{
+    int acc; /* accumulate the partial result */
+
+    for (acc = 0; isdigit(*str); str++) {
+        acc = acc * 10 + (*str - '0');
+    }
+
+    return acc;
+}
+
+-}
+
+-- Let us create a function "loop" in Haskell which parse through the chars
+-- and sums up the values.
+asInt :: String -> Int
+asInt xs = loop 0 xs 
+
+-- first parameter to loop is the accumulator: initialized to 0 in this case 
+-- just as acc = 0 in the C equivalent
+loop :: Int -> String -> Int 
+loop acc [] = acc
+loop acc (x:xs) = loop acc' xs 
+    where acc' = acc * 10 + digitToInt x
+    
+-- Last thing that the "loop" does is calling itself. It is an example of 
+-- "tail call recursion"
+
+-- Thinking on the structure of the list and handling the empty and non-empty 
+-- cases separately - This approach is called "structural recursion"
+
+-- This "loop" function is an example of both tail call recursion and structural
+-- recursion.
+
+-- "Base case" - means non-recursive case - here: loop acc [] = acc 
+-- "Recursive case" or "Inductive case" - where the function calls itself
+
+{- 
+TAIL CALL RECURSION:
+
+In traditional languages, the loops execute in constant space, whereas in 
+a recursive function, it needs to have the thunks stored, so the memory 
+requirements increase with the size of the loop. 
+
+Functional language implementation detects the uses of tail recursion, and 
+transforms all recursive calls to run in constant space. this is called 
+tail call optimization - "tco"
+
+Very few imperative language has support for TCO, so a similar recursive style
+applied in tranditional languages lead to memory leaks and poor performance
+
+-}
+
+-- 2. Transforming Every Piece of Input 
+
+-- Considering another C function, to square numbers 
+{- In place squaring of numbers, given an address location
+
+void square(double *out, const double *in, size_t length)
+{
+    for (size_t i = 0; i < length; i++) {
+	out[i] = in[i] * in[i];
+    }
+}
+
+-}
+
+-- every input element is substituted with a different element 
+square :: [Double] -> [Double]
+square (x:xs) = x * x : square xs 
+square []     = []
+
+-- converting each character to uppercase
+{-
+-- #include <ctype.h>
+
+char *uppercase(const char *in)
+{
+    char *out = strdup(in);
+    
+    if (out != NULL) {
+	for (size_t i = 0; out[i] != '\0'; i++) {
+	    out[i] = toupper(out[i]);
+	}
+    }
+
+    return out;
+}
+-}
+
+upperCase :: String -> String
+upperCase (x:xs) = toUpper x : upperCase xs
+upperCase []     = []
+
+-- "base case" deals with the empty list 
+-- "recursive case" deals with the non-empty list 
+
+-- 3. Mapping over a list 
+
+-- For both "square" and "upperCase" functions, lengths of the input and output 
+-- list are the same.  Each element is transformed into something else 
+-- This can be done by mapping a function over the list.
+square2 xs = map (\x -> x * x) xs
+uppercase2 xs = map toUpper xs
+
+-- map :: (a -> b) -> [a] -> [b]
+-- map function takes another function as input (just like zipWith)
+-- map, zipWith are higher order functions, taking another fn as input 
+-- Higher order functions : Take another function as input; or return another 
+-- function as output.
+
+-- map could have been defined like this 
+map' :: (a -> b) -> [a] -> [b]
+map' f (x:xs) = f x : map' f xs
+map' _ _      = []              -- If it does not form a pattern of (x:xs)
+-- f is not used on right side, so "_"
+-- default if (x:xs) not matched, it is empty list, no need to match, so "_"
+
+
+-- As a matter of style, it is fine to use wild cards for well known simple 
+-- types like lists and Maybe. For more complicated or less familiar types, it 
+-- can be safer and more readable to name constructors explicitly
+
+-- 4. Selecting Pieces of Input 
+
+-- select odd numbers from a list
+oddList :: [Int] -> [Int]
+oddList (x:xs) 
+    | odd x         = x : oddList xs
+    | otherwise     = oddList xs
+oddList _           = []       
+ 
+-- select non-vowels from a string
+nonVowels :: String -> String 
+nonVowels (x:xs)
+    | notElem x "aeiou" = x : nonVowels xs
+    | otherwise         = nonVowels xs
+nonVowels _             = []
+
+-- The idea is same, take each element, check for a condition, select or not.
+-- "filter" function abstracts this idea.
+-- filter :: (a -> Bool) -> [a] -> [a]
+
+-- oddList Rewritten
+oddList2 = filter odd 
+
+list31 = oddList [1,1,2,3,5,8,13,21,34]
+list32 = oddList2 [1,1,2,3,5,8,13,21,34]
+
+-- 5. Computing one answer over a collection
+-- Reducing the collection to a single value (using "fold")
+mySum xs = helper 0 xs
+    where helper acc (x:xs) = helper (acc + x) xs
+          helper acc _      = acc
+
+sumVal1 = mySum [1,2,3,4,5]                     -- 15
+
+-- Adler-32 checksum implementation
+-- Concatenation of 2 16-bits
+-- First 16-bit: Sum of input bytes + 1 
+-- Second 16-bit: Sum of intermediate values of first check sum
+-- Sums are computed to the modulo of 65521
+ 
+{-
+public class Adler32 
+{
+    private static final int base = 65521;
+
+    public static int compute(byte[] data, int offset, int length)
+    {
+        int a = 1, b = 0;
+
+        for (int i = offset; i < offset + length; i++) {
+            a = (a + (data[i] & 0xff)) % base;
+            b = (a + b) % base;
+        }
+
+        return (b << 16) | a;
+    }
+}
+-}
+
+
+-- See above, there are a few functions to be imported
+-- imports to be at top, so commented here
+-- import Data.Char (ord)
+-- import Data.Bits (shiftL, (.&.), (.|.))
+          
+base = 65521          
+adler32 xs = helper 1 0 xs
+    where helper a b (x:xs) = helper a' b' xs 
+            where a' = (a + (ord x .&. 0xff)) `mod` base
+                  b' = (a' + b) `mod` base
+          helper a b _   = (b `shiftL` 16) .|. a
+        
+-- Using a pair, instead of 2 accumulator variables
+adler32' xs = helper (1,0) xs
+    where helper (a,b) (x:xs) =
+              let a' = (a + (ord x .&. 0xff)) `mod` base
+                  b' = (a' + b) `mod` base
+              in helper (a',b') xs
+          helper (a,b) _     = (b `shiftL` 16) .|. a        
+
+-- Change in the 2nd function: Using a single accumulator, instead of 2.
+-- "Do something to every element of a list, update acc as we go, returning 
+-- the accumulator as we are done"
+
+
+          
 -- Use a fold (choosing the appropriate fold will make your code much simpler) 
 -- to rewrite and improve upon the asInt function from the section called 
 -- “Explicit recursion”. 1
@@ -379,4 +602,5 @@ groupBy' f (x:xs) = foldr (groupFn f x) [] xs where
 -- unlines
 -- For those functions where you can use either foldl' or foldr, which is more 
 -- appropriate in each case?        
+
 
