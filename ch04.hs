@@ -531,12 +531,134 @@ adler32' xs = helper (1,0) xs
 -- Change in the 2nd function: Using a single accumulator, instead of 2.
 -- "Do something to every element of a list, update acc as we go, returning 
 -- the accumulator as we are done"
+-- This can be abstracted to a function called "fold"
 
+-- Reduce all elements of type 'b' in a list to a single value of type 'a'
+-- The accumulator and the reduced (folded up) value are of same type.
+-- also take a function as argument which takes in a 'a' and a 'b' and gives 
+-- out a 'a'.  The function takes an accumulator and an element from the list.
 
+-- Here is a custom definition of "foldl", the left fold
+myFold :: (a -> b -> a) -> a -> [b] -> a
+myFold step zero (x:xs) = myFold step (step zero x) xs
+myFold _ zero []        = zero
+
+-- reimplementation of "sum" function using the foldl function
+foldSum xs = foldl step 0 xs
+    where step acc x = acc + x
+    
+-- step function replaced by (+)
+niceSum xs = foldl (+) 0 xs
+
+sumVal2 = niceSum [1,2,3,4,5]                     -- 15          
+-- compare the niceSum and foldSum with mySum, niceSum is so concise.
+-- the explicit recursion part is taken care of 'fold'
+-- Any repeated pattern can be abstracted to a function!
+-- just need to worry about the accumulator and the step function.
+
+{-
+foldl (+) 0 (1:2:3:[])
+          == foldl (+) (0 + 1)             (2:3:[])
+          == foldl (+) ((0 + 1) + 2)       (3:[])
+          == foldl (+) (((0 + 1) + 2) + 3) []
+          ==           (((0 + 1) + 2) + 3)
+-}
+
+{-
+-- rewriting the adler32' function using foldl
+-- check this, throwing up errors.
+adler32Fold xs = let (a, b) = foldl step (1, 0) xs
+                 in (b `shiftL` 16) .|. a
+                    where step (a, b) x = let a' = a + (ord x .&. 0xff)
+                                          in (a' mod base, (a' + b) `mod` base)
+                          
+-}
+
+-- right fold (foldr                  
+myFoldr :: (a -> b -> b) -> b -> [a] -> b
+
+myFoldr step zero (x:xs) = step x (myFoldr step zero xs)
+myFoldr _    zero []     = zero
           
+{-
+foldr (+) 0 (1:2:3:[])
+          == 1 +           foldr (+) 0 (2:3:[])
+          == 1 + (2 +      foldr (+) 0 (3:[])
+          == 1 + (2 + (3 + foldr (+) 0 []))
+          == 1 + (2 + (3 + 0))
+
+Simply put,
+                 1 : (2 : (3 : []))
+                 1 + (2 + (3 + 0))
+
+foldr replaces the empty list with the zero value, and every constructor in the 
+list with an application of the step function
+
+-}
+
+-- Rewriting filter with explicit recursion 
+myFilter :: (a -> Bool) -> [a] -> [a]
+myFilter p []   = []
+myFilter p (x:xs)
+    | p x       = x : myFilter p xs
+    | otherwise = myFilter p xs
+
+-- now, instead of recursion, we can use fold.
+foldFilter :: (a -> Bool) -> [a] -> [a]
+foldFilter p xs = foldr step [] xs
+    where step x ys | p x       = x : ys
+                    | otherwise = ys
+
+-- using foldl
+foldFilter' :: (a -> Bool) -> [a] -> [a]
+foldFilter' p xs = reverse $ foldl step [] xs
+    where step ys x | p x       = x : ys
+                    | otherwise = ys
+           
+-- Note that the arguments for step functions are interchanged in foldr v foldl
+
+-- 'map' function written using foldr
+mapUsingFold :: (a -> b) -> [a] -> [b]
+mapUsingFold f xs = foldr step [] xs
+    where step x ys = f x : ys
+
+-- 'foldl' function written using foldr
+foldlWithr :: (a -> b -> a) -> a -> [b] -> a
+foldlWithr f z xs = foldr step id xs z
+    where step x g a = g (f a x)
+{-        
+
+-- Yet to decode how foldl construction happens with foldr 
+
+foldr :: Foldable t => (a -> b -> b) -> b -> t a -> b
+
+-}
+
+-- getting the same list back, using foldr 
+identity :: [a] -> [a]
+identity xs = foldr (:) [] xs
+
+-- equivalent of (++)
+append :: [a] -> [a] -> [a]
+append xs ys = foldr (:) ys xs  -- ys is the accumulator, xs will be expanded
+
+
+-- Disadvantages of foldl
+{-
+foldl (+) 0 (1:2:3:[])
+          == foldl (+) (0 + 1)             (2:3:[])
+          == foldl (+) ((0 + 1) + 2)       (3:[])
+          == foldl (+) (((0 + 1) + 2) + 3) []
+          ==           (((0 + 1) + 2) + 3)
+-}
+-- Final expression is not evaluated until the entire list is traversed.
+-- Must be stored as thunk, thunk is expensive in storage
+-- foldl' overcomes the issue, by making it stricter evaluation
+          
+  
 -- Use a fold (choosing the appropriate fold will make your code much simpler) 
 -- to rewrite and improve upon the asInt function from the section called 
--- “Explicit recursion”. 1
+-- "Explicit recursion". 1
 asInt_fold :: String -> Int
 asInt_fold [] = 0
 asInt_fold (x:xs) 
@@ -583,7 +705,7 @@ takeWhile'' f xs = foldr (takeMe f) [] xs where
 -- type. Write your own implementation using a fold.
 -- group "Mississippi" == groupBy (\x y -> x == y) "Mississippi" == 
 -- ["M","i","ss","i","ss","i","pp","i"]
--- groupBy allows user to supply his own equality function
+-- groupBy allo ws user to supply his own equality function
 {-
 -- TODO : The following function does not work as expected, need to correct.
 groupBy' :: (a -> a -> Bool) -> [a] -> [[a]]
@@ -602,5 +724,3 @@ groupBy' f (x:xs) = foldr (groupFn f x) [] xs where
 -- unlines
 -- For those functions where you can use either foldl' or foldr, which is more 
 -- appropriate in each case?        
-
-
