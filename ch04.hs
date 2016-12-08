@@ -724,3 +724,165 @@ groupBy' f (x:xs) = foldr (groupFn f x) [] xs where
 -- unlines
 -- For those functions where you can use either foldl' or foldr, which is more 
 -- appropriate in each case?        
+
+-- Anonymous lambda functions.
+isInAny needle haystack = any inSequence haystack
+    where inSequence s = needle `isInfixOf` s
+    
+-- instead of defining inSequence helper function using a "where" clause
+isInAny2 needle haystack = any (\x -> needle `isInfixOf` x) haystack
+
+-- Restrictions on lambda functions.
+-- Normal functions can have any number of clauses and pattern, guards.
+-- Lambda function can have only a single clause in its definition.
+
+-- To help readability and maintainability, it is better to avoid lambda fns.
+
+-- Partial Function Applications and Currying.
+-- :type dropWhile
+-- dropWhile :: (a -> Bool) -> [a] -> [a]
+
+-- Looks like the symbol "->" is separating the parameters and the result.
+-- "->" actually says this: The thing on the left is input and the things on 
+-- the right is the output 
+
+-- "->" always takes one argument.  So, all functions in Haskell takes just 
+-- one argument.
+
+-- dropWhile :: (a -> Bool) -> [a] -> [a]
+-- Takes a predicate, and a list as input and returns another list as output.
+-- (a -> Bool) -> ([a] -> [a])
+-- Takes a predicate as input and returns a function that takes a list as input 
+-- returns a list as output.
+-- While dropWhile looks like a function that takes two arguments, it is 
+-- actually a function of one argument, which returns a function that takes 
+-- one argument 
+
+
+-- dropOnSpace strips the leading white spaces
+dropOnSpace :: [Char] -> [Char]
+dropOnSpace = dropWhile isSpace
+
+leftTrimStr = map dropOnSpace ["   india", "united states", "   japan"]
+
+-- trailTrim strips the trailing white spaces
+trailTrim :: [Char] -> [Char]
+trailTrim = reverse . dropOnSpace . reverse
+
+rightTrimStr = map trailTrim ["india   ", "united states  ", "japan"]
+
+-- trim both sides
+trim = dropOnSpace . trailTrim
+
+trimmedStr = map trim ["  india  ", "  united states  "]
+
+-- zip3 needs 3 arguments 
+-- zip3 :: [a] -> [b] -> [c] -> [(a, b, c)]
+zippedEx1 = zip3 "four" "five" "nine"   -- [(f,f,n), (o,i,i), (u,v,n), (r,e,e)]
+
+-- partial application (applying less arguments than a function can accept)
+-- pre-supply one argument to zip3 (zipWithAnt is a function that takes 
+-- 2 strings and gives out the zipped list of tuples.
+zipWithAnt = zip3 "ant"
+zippedEx2 = zipWithAnt "cat" "rat"      -- [(a,c,r), (n,a,a), (t,t,t)]
+
+-- Using partial application instead of lambda 
+isInAny3 needle haystack = any (isInfixOf needle) haystack
+
+-- Partial application of Haskell functions is called "currying"
+
+-- foldl is applied partly the list argument is not given.
+-- So, "foldl (+) 0" expects a list as input, means nicerSum expects a 
+-- list as input.
+nicerSum :: [Integer] -> Integer
+nicerSum = foldl (+) 0
+
+-- "Section"  - partial application in the infix functional notation.
+sectionEx1 = (1+) 2             -- only the first argument of (+) is supplied
+sectionEx2 = map (2*) [1,2,3]   -- [2,4,6]
+sectionEx3 = map (*3) [1,2,3]   -- only the 2nd argument of (*) is supplied
+sectionEx4 = map (2^) [0,1,2,3] -- Powers of 2
+sectionEx5 = map (^2) [0,1,2,3] -- Squares
+
+-- We can use any function in the infix notation to get benefit of "sectioning"
+sectionEx6 = all (`elem` ['a'..'z']) "Frobozz"  -- False
+
+-- Using sectioning, rewriting isInAny function.
+isInAny4 needle haystack = any (needle `isInfixOf`) haystack
+
+-- "As-patterns"
+-- xs@(_:xs') is called as-pattern 
+-- Bind the variable xs to the value that matches the right side of '@'
+-- xs is bound to entire list and xs' is bound to all but the head.
+
+tailEx1 = tails "cricket"   -- ["cricket", "ricket", "icket" .. "et", "t", ""]
+
+-- rewriting the tails function (not outputting the last empty string)
+suffixes :: [a] -> [[a]]
+suffixes xs@(_:xs') = xs : suffixes xs'
+suffixes _          = []
+
+-- using the tails function 
+suffixes2 xs = init (tails xs)
+
+-- applying a function, and on the result apply another function.
+compose :: (b -> c) -> (a -> b) -> (a -> c)
+compose f g x = f (g x)
+
+-- using compose 
+suffixes3 xs = compose init tails xs 
+
+-- xs is common on both sides, no need to give explicitly 
+suffixes4 = compose init tails 
+
+-- there is a built-in compose function available (.)
+suffixes5 = (.) init tails
+
+-- using the compose (.) function in infix form 
+suffixes6 = init . tails
+
+-- Puzzle: Count the number of words in a string that begins with Capital letter
+numCapStarts xs = length (filter (==True) (capStart xs))
+    where capStart xs = map isUpper (map head (words xs))
+
+-- Better formulation of the same function using (.)
+-- (.) is right associative 
+numCapStarts2 = length . filter (isUpper . head) . words
+    
+-- To get the names of the macros in the C file 
+
+-- #define DLT_EN10MB      1       /* Ethernet (10Mb) */
+-- #define DLT_EN3MB       2       /* Experimental Ethernet (3Mb) */
+-- #define DLT_AX25        3       /* Amateur Radio AX.25 */
+
+dlts :: String -> [String]
+dlts = foldr step [] . lines
+    where step l ds | "#define DLT_" `isPrefixOf` l = secondWord l : ds
+                    | otherwise                     = ds
+          secondWord = head . tail . words
+
+inputLines = "#define DLT_EN10MB      1       /* Ethernet (10Mb) */\n#define DLT_EN3MB       2       /* Experimental Ethernet (3Mb) */\n#define DLT_AX25        3       /* Amateur Radio AX.25 */"
+
+macroNames = dlts inputLines
+
+-- Some tips:
+-- Use explicit tail recursion and lambda functions sparingly
+-- Use map, filter functions wherever possible instead of tail recursion.
+-- fold takes more effort to understand than map or filter
+-- Use fold, in place of a tail recursion loop.
+
+-- Avoiding space leaks with "seq" function
+-- "seq" function forces left side argument to be evaluated before looking @ RHS
+-- The foldl' (the strict version of foldl) may be implemented as follows
+
+foldlStrict _    zero []     = zero
+foldlStrict step zero (x:xs) =
+    let new = step zero x
+    in  new `seq` foldlStrict step new xs
+    
+-- :t seq 
+-- seq :: a -> t -> t   (gives the second argument as result)
+-- But the first thing that it does is to evaluate 'a'
+
+
+    
