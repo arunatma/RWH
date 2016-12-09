@@ -1,4 +1,9 @@
 --{-# OPTIONS_GHC -Wall #-}
+
+-- Chapter 4. Fuctional Programming
+-- http://book.realworldhaskell.org/read/functional-programming.html
+
+
 import Data.List
 import Data.Char
 import Data.Char (ord)
