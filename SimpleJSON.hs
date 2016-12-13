@@ -1,6 +1,6 @@
-{-# OPTIONS_GHC -Wall #-}
+-- {-# OPTIONS_GHC -Wall #-}
 
--- Chapter 4. Writing a library: working with JSON data
+-- Chapter 5. Writing a library: working with JSON data
 -- http://book.realworldhaskell.org/read/writing-a-library-working-with-json-data.html
 
 -- JSON - JavaScript Object Notation
@@ -14,7 +14,10 @@
 -- The objects are combination of name value pairs, the names are always 
 -- strings and the value can be one of the 4 basic types or 2 advanced types.
 
--- We are creating a module with name SimpleJSON
+-- We are creating a module with name (SimpleJSON in the book)
+-- A source file must have the same base name (the component before the suffix)
+-- as the name of the module it contains
+
 module SimpleJSON
     (
       JValue(..)
@@ -26,6 +29,9 @@ module SimpleJSON
     , getArray
     , isNull
     ) where
+
+-- Omit () to export all the functions: "module ch05 where"
+-- To export nothing, give an empty (): "module ch05 () where"
     
 -- Representing JSON data in Haskell    
 data JValue = JString String
@@ -62,4 +68,17 @@ getArray _          = Nothing
 
 isNull :: JValue -> Bool
 isNull v            = v == JNull
+
+-- Compiling Haskell Source
+-- ghc -c ch05.hs 
+-- -c: generate only the object code (and not the executable)
+-- ghc ch05.hs
+-- tries generating executable. Fails! As, we don't have "main" function yet.
+-- Output of compilation:
+-- ghc.hi (haskell interface file, info on names exported)
+-- ghc.o  (object file containing machine code of the functions)
+
+-- Use this file, with Main.hs, where the main function is defined
+-- To link the main file, to create exe:
+-- ghc -o simple.exe Main.hs SimpleJSON.hs
 
