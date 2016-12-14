@@ -26,9 +26,16 @@ a <> b = undefined
 char :: Char -> Doc
 char c = undefined
 
--- hcat: concontanates multiple Doc values to a single Doc
+-- hcat: concatenates multiple Doc values to a single Doc
 hcat :: [Doc] -> Doc
 hcat xs = undefined
 
+-- used by 'series' function in PrettyJSON.hs
+fsep :: [Doc] -> Doc
+fsep xs = undefined
 
-
+-- Appends the punctuation, except for the last 'Doc' in the list.
+punctuate :: Doc -> [Doc] -> [Doc]
+punctuate p []     = []
+punctuate p [d]    = [d]
+punctuate p (d:ds) = (d <> p) : punctuate p ds
