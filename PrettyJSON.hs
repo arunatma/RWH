@@ -89,8 +89,4 @@ series open close item = enclose open close
 -- Each of Doc is punctuated with ','
 -- fsep converts [Doc] to Doc which is enclosed with open and close characters.
 
--- Appends the punctuation, except for the last 'Doc' in the list.
-punctuate :: Doc -> [Doc] -> [Doc]
-punctuate p []     = []
-punctuate p [d]    = [d]
-punctuate p (d:ds) = (d <> p) : punctuate p ds
+
