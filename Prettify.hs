@@ -160,3 +160,31 @@ w `fits` ""        = True
 w `fits` ('\n':_)  = True
 w `fits` (c:cs)    = (w - 1) `fits` cs
 
+{-
+
+ghci> putStrLn (pretty 10 value)
+{"f": 1.0,
+"q": true
+}
+ghci> putStrLn (pretty 20 value)
+{"f": 1.0, "q": true
+}
+ghci> putStrLn (pretty 30 value)
+{"f": 1.0, "q": true }
+
+-}
+
+-- Exercises
+-- Todo:
+{-
+
+1. Write a function, fill, with the following type signature
+fill :: Int -> Doc -> Doc
+It should add spaces to the document until it is the given number of columns
+wide. If it is already wider than this value, should add no space.
+
+2. Take care of nesting.  Whenever we open parenthesis, braces or brackets 
+any lines that follow should be indented appropriately until the closing 
+matching character.
+
+-}
