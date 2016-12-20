@@ -1,6 +1,12 @@
 -- http://book.realworldhaskell.org/read/using-typeclasses.html
 -- Chapter 6: Using Typeclasses
 
+import Data.Char (isSpace)
+
+trim :: String -> String
+trim = f . f
+   where f = reverse . dropWhile isSpace
+   
 -- Typeclasses allow definition of generic interfaces
 -- Typeclasses mandate certain functions to  be defined by any data type that 
 -- use them.
@@ -135,4 +141,111 @@ instance BasicEq3 Wrapper where
 
 -- Built-in type classes
 
+-- 'Show' 
+---------
+
+{-
+    ghci> :type show
+    show :: (Show a) => a -> String
+-}
+
+-- Has a function called "show" which takes any type and converts to String
+-- show 1                   -- "1"
+-- show "arun"              -- "\"arun\""
+-- show [1,2]               -- "[1,2]"
+-- show 'c'                 -- "'c'"
+-- show "Hi, \"Jane\""      -- "\"Hi, \\\"Jane\\\"\""
+-- See escaping and quotes are added by show function
+
+-- ghci displays results as they would be entered into a Haskell program
+-- To get the string that we want
+-- putStrLn (show 'c')              -- 'c'
+-- putStrLn (show "Hi, \"Jane\"")   -- "Hi, \"Jane\""
+
+
+-- defining a show instance for "Color" data type
+instance Show Color where
+    show Red    = "Red"
+    show Green  = "Green"
+    show Blue   = "Blue"
     
+-- 'Read'
+---------
+
+-- the counter class of 'Show' typeclass
+{-
+    ghci> :type read
+    read :: (Read a) => String -> a
+-}
+
+doubleTheDouble = do
+    putStrLn "Please enter a Double:"
+    inpStr <- getLine
+    let inpDouble = (read inpStr)::Double
+    putStrLn ("Twice " ++ show inpDouble ++ " is " ++ show (inpDouble * 2))
+
+-- Explicit type specification while "read" needed here because:
+-- Many data types have instances for Read and Show. 
+-- If there is no specific type mentioned, the compiler guesses one. 
+-- Here it might choose Integer, which fails for a floating-point input.
+
+-- Mostly, if the type specification is not there and compiler not able to 
+-- guess, it throws an error.  Here the guess of "Integer" is because of (* 2)
+
+{-
+
+    ghci> (read "5")::Integer
+    5
+    ghci> (read "5")::Double
+    5.0
+
+    ghci> (read "5.0")::Integer
+    *** Exception: Prelude.read: no parse    
+    
+    -- The Read class has some pretty complex parsers
+    -- The instance chosen above is a different parser (Integer) which does 
+    -- not expect "." in the number
+-}
+
+-- Writing a Read instance for Color data type
+instance Read Color where
+    readsPrec _ value = 
+        -- We pass tryParse a list of pairs.  Each pair has a string
+        -- and the desired return value.  tryParse will try to match
+        -- the input to one of these strings.
+        tryParse [("Red", Red), ("Green", Green), ("Blue", Blue)]
+        where tryParse [] = []    -- If there is nothing left to try, fail
+              tryParse ((attempt, result):xs) =
+                      -- Compare the start of the string to be parsed to the
+                      -- text we are looking for.
+                      if (take (length attempt) (trim value)) == attempt
+                         -- If we have a match, return the result and the
+                         -- remaining input
+                         then [(result, drop (length attempt) (trim value))]
+                         -- If we don't have a match, try the next pair
+                         -- in the list of attempts.
+                         else tryParse xs
+
+
+{-
+    readsPrec makes it possible that the instance works for any higher data
+    types as well!
+    
+    ghci> (read "Red")::Color
+    Red
+    ghci> (read "[Red]")::[Color]
+    [Red]
+    ghci> (read "[Red,Red,Blue]")::[Color]
+    [Red,Red,Blue]
+    ghci> (read "[Red, Red, Blue]")::[Color]
+    *** Exception: Prelude.read: no parse
+
+    -- The leading white spaces are not handled by the parser defined above!
+    
+    -- Defined now: Using "trim" to remove the leading or trailing white space.
+-} 
+
+-- Note:
+-- Read is not widely used.
+-- Many people use "Parsec" for writing the parsers 
+
