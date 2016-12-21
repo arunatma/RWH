@@ -249,3 +249,89 @@ instance Read Color where
 -- Read is not widely used.
 -- Many people use "Parsec" for writing the parsers 
 
+-- Serialization with Read and Show
+-- serialization: The process of converting the data structure in memory into 
+-- serialized bits to be stored on to disk
+-- show and read: also function as tools for serialization
+-- show: output is both human readable and machine-readable.
+
+-- writing
+d1 = [Just 5, Nothing, Nothing, Just 8, Just 9]::[Maybe Int]
+d1print = putStrLn (show d1)      -- [Just 5, Nothing, Nothing, Just 8, Just 9]
+d1write = writeFile "test.txt" (show d1) -- Creates test.txt when triggered
+
+-- reading
+d2read = readFile "test.txt"
+
+d2 = do
+    d2readstr <- d2read
+    return((read d2readstr) :: [Maybe Int])
+
+{-
+-- Numeric Types
+
+Double   Double-precision floating point. A common choice for floating-point.
+Float    Single-precision floating point. Often used when interfacing with C.
+Int      Fixed-precision signed integer;  range [-2^29..2^29-1]. Commonly used.
+Int8     8-bit signed integer
+Int16    16-bit signed integer
+Int32    32-bit signed integer
+Int64    64-bit signed integer
+Integer  Arbitrary-precision signed integer; range limited only by machine 
+         resources. Commonly used.
+Rational Arbitrary-precision rational numbers. Stored as a ratio of two Integers
+Word     Fixed-precision unsigned integer; storage size same as Int
+Word8    8-bit unsigned integer
+Word16   16-bit unsigned integer
+Word32   32-bit unsigned integer
+Word64   64-bit unsigned integer
+
+
+Int8, Int16, Int32, Int64 are defined in Data.Int
+Word8, Word16, Word32, Word64 are defined in Data.Word
+
+-}
+
+{-
+-- Numeric TypeClasses
+
+    Bits
+    Bounded
+    Floating
+    Fractional
+    Integral
+    Num
+    Real
+    RealFrac
+
+-}
+
+{-
+-- Which typeclass instances are defined for which types?
+Type    Bits    Bounded    Floating    Fractional    Integral    Num  Real   RealFrac
+Double                     X           X                         X    X      X
+Float                      X           X                         X    X      X
+Int      X        X                                  X           X    X
+Int16    X        X                                  X           X    X
+Int32    X        X                                  X           X    X
+Int64    X        X                                  X           X    X
+Integer  X                                           X           X    X
+Rational or any Ratio                  X                         X    X      X
+Word     X        X                                  X           X    X
+Word16   X        X                                  X           X    X
+Word32   X        X                                  X           X    X
+Word64   X        X                                  X           X    X
+-}
+
+{-
+-- Conversion from one type to another - which function to use?
+
+Source Type                                    Destination Type
+                    Double, Float               Int, Word       Integer         Rational
+Double, Float       fromRational . toRational   truncate*       truncate*       toRational
+Int, Word           fromIntegral                fromIntegral    fromIntegral    fromIntegral
+Integer             fromIntegral                fromIntegral    N/A             fromIntegral
+Rational            fromRational                truncate*       truncate*       N/A
+
+truncate* = any of the functions: truncate, ceiling, floor, round
+-}
