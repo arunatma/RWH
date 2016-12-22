@@ -2,6 +2,8 @@
 -- Chapter 6: Using Typeclasses
 
 import Data.Char (isSpace)
+import SimpleJSON
+import JSONClass
 
 trim :: String -> String
 trim = f . f
@@ -335,3 +337,86 @@ Rational            fromRational                truncate*       truncate*       
 
 truncate* = any of the functions: truncate, ceiling, floor, round
 -}
+
+-- Equality, Ordering and Comparisons
+-- Most of the data types can derive the Eq and Ord type classes so that they 
+-- can be compared against each other or ordered.
+
+data SimpleDt = PointA | PointB | PointC deriving (Eq, Ord, Read, Show)
+-- Simple data types can automatically derive the above typeclasses.
+-- A complex one (like one involving a function) cannot!
+
+data MyType = MyType (Int -> Bool) 
+
+-- working with JSON
+-- In JSON, a list can have any values
+-- But in our implementation, there is a constraint: all should be of same type
+result :: JValue
+result = JObject [
+  ("query", JString "awkward squad haskell"),
+  ("estimatedCount", JNumber 3920),
+  ("moreResults", JBool True),
+  ("results", JArray [
+     JObject [
+      ("title", JString "Simon Peyton Jones: papers"),
+      ("snippet", JString "Tackling the awkward ..."),
+      ("url", JString "http://.../marktoberdorf/")
+     ]])
+  ]
+
+-- See JSONClass.hs  
+
+-- newtype keyword
+data DataInt = D Int
+    deriving (Eq, Ord, Show)
+
+newtype NewtypeInt = N Int
+    deriving (Eq, Ord, Show)
+-- NewtypeInt can be checked for equality, ordered or printed
+-- It cannot use the other typeclasses of "Int" (like Num, Real etc)
+    
+newtype UniqueID = UniqueID Int
+    deriving (Eq)
+    
+-- newtype and type though look similar, are not the same.
+-- type synonym is interchangeable - [Char] with String
+-- But the newtype is not interchangeable
+    
+-- Most important:
+-- a "newtype" can have only one data constructor
+-- that data constructor must exactly have one field (no less no more)
+    
+-- ok: any number of fields and constructors
+data TwoFields = TwoFields Int Int
+
+-- ok: exactly one field
+newtype Okay = ExactlyOne Int
+
+-- ok: type parameters are no problem
+newtype Param a b = Param (Either a b)
+
+-- ok: record syntax is fine
+newtype Record = Record {
+      getInt :: Int
+    }
+
+{-    
+-- bad: no fields
+newtype TooFew = TooFew
+
+-- bad: more than one field
+newtype TooManyFields = Fields Int Int
+
+-- bad: more than one constructor
+newtype TooManyConstrs = Bad Int
+                       | Worse Int    
+-}
+
+-- Extra overhead needed for processing - to understand using which data 
+-- constructor the value is created (when using data keyword)
+-- No such overhead in newtype
+-- Space and Time efficient in run time.
+
+-- When we apply the N constructor in an expression (or in a pattern), we 
+-- coerce an expression from type Int to type NewtypeInt. No overhead in runtime
+
