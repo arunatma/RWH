@@ -421,3 +421,25 @@ newtype TooManyConstrs = Bad Int
 -- coerce an expression from type Int to type NewtypeInt. No overhead in runtime
 
 -- JSON typeclasses without overlapping instances 
+-- Reworking to use "newtype" instead of overlapping instances
+
+-- Make compiler to distinguish JSON Array [a] and JSON Objects [(String, [a])]
+-- See JSONClass.hs
+-- newtypes JAry and JObj defined.
+-- discussions on what to export and what not to are done!
+
+-- Exercises
+-- 1. Load the Control.Arrow module into ghci, and find out what the "second" 
+-- function does
+-- "second" is used in the instance definition of JObj. (see JSONClass.hs)
+-- Not yet undersood - it is a function with 'Arrow' monad. To dig deeper!
+
+-- 2. What is the type of (,)? When you use it in ghci, what does it do? 
+-- What about (,,)
+-- These are functions that make a pair or triplet respectively
+
+-- MONOMORPHISM
+-- To deal with: (when encountered a monomorphism error)
+-- 1. Make the function's arguments explicit
+-- 2. Give the definition an explicit type signature
+-- 3. Leave the code untouched, Use 'NoMonomorphismRestriction' extension 
