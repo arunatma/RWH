@@ -420,3 +420,4 @@ newtype TooManyConstrs = Bad Int
 -- When we apply the N constructor in an expression (or in a pattern), we 
 -- coerce an expression from type Int to type NewtypeInt. No overhead in runtime
 
+-- JSON typeclasses without overlapping instances 
