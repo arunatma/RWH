@@ -20,8 +20,32 @@ basicio = do
        inpStr <- getLine
        putStrLn $ "Welcome to Haskell, " ++ inpStr ++ "!"
 -- Try :t putStrLn and :t getLine in ghci
+-- getLine :: IO String  (getLine is storing an IO action!)
+-- "<-" binds the result to inpStr, so inpStr is of type "String"
+-- The <- operator is used to "pull out" the result from performing an 
+-- I/O action and store it in a variable.
+-- main (here basicio) is of type IO()
+    
+-- all haskell programs start with main and execute all IO within that.
+-- "do" is convenient to sequence actions
+-- "do" needed when more than one action needs to be performed.
+-- indentation is important within "do" block.
 
 ----------------
+{-
+ghci> let writefoo = putStrLn "foo"
+ghci> writefoo
+foo
+    
+The output foo is not a return value from putStrLn. It is the side effect of 
+putStrLn actually writing foo to the terminal
+-}
+
+-- IO Action
+-- type IO t
+-- Produce an effect when performed, but not when evaluated
+-- Performing (executing) an action of type IO t may perform I/O and will 
+-- ultimately deliver a result of type t
 
 name2reply :: String -> String
 name2reply name =
@@ -33,8 +57,10 @@ callingpure :: IO ()
 callingpure = do
        putStrLn "Greetings once again.  What is your name?"
        inpStr <- getLine
-       let outStr = name2reply inpStr
+       let outStr = name2reply inpStr       -- (note: No "let .. in" only "let")
        putStrLn outStr
+-- "<-" pull the value from the IO (or any monad) context
+-- "let .. =" assigns the value (in a non IO or non Monad context)
 
 ----------------
 -- Code Snippets to do file operation
@@ -50,16 +76,43 @@ mainloop :: Handle -> Handle -> IO ()
 mainloop inh outh = 
     do ineof <- hIsEOF inh
        if ineof
-           then return ()
+           then return ()   -- not the return in C - this put () in IO, so IO()
            else do inpStr <- hGetLine inh
                    hPutStrLn outh (map toUpper inpStr)
                    mainloop inh outh       
+                   
+-- return puts a pure value () in monad context () becomes IO ()
+-- return is opposite of "<-", <- is used to extract the pure value from context
+
+
+-- We opened the files with ReadMode and WriteMode
+-- Deatils on IO modes:
+-- ReadMode - Can read, Cannot write, Seek Pos: Start. File should present
+-- WriteMode - Cannot read, Can write, Seek Pos: Start. File Emptied when exists
+-- ReadWriteMode - Can read, Can write, Seek Pos: Start. Created if not exists,
+--                 left untouched if existing already
+-- AppendMode - Cannot read, Can Write, Seek Pos: End. Created if not exists, 
+--              left untouched if existing already
+
+
+
 -- New functions:
 -- openFile, hClose, hIsEOF, hGetLine, hPutStrLn
 -- use openBinaryFile to process binary files
 -- Linux treats both text and binary files the same way. Need to use
 -- openBinaryFile function to have compatibility with Windows OS
+
 ----------------
+
+-- hTell: To tell where the read or write position is in the file.
+-- hSeek: To go to desired location in the file.
+--        Takes 3 arguments
+--        hSeek handle SeekFromEnd 0
+--        Handle, SeekMode and SeekValue
+--        SeekMode can be one of SeekFromEnd, AbsoluteSeek or RelativeSeek
+--        (from end, from start, from current respectively)
+
+-- hIsSeekable: Tells whether a handle is seekable (ex: n/w handle is not)
 
 -- file: ch07/tempfile.hs
 -- Explains various concepts including
