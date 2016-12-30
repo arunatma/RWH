@@ -6,7 +6,7 @@
 import System.IO
 import Data.Char(toUpper)
 
-import System.Directory(getTemporaryDirectory, removeFile)
+import System.Directory(getTemporaryDirectory, removeFile, renameFile)
 import System.IO.Error(catchIOError)
 import Control.Exception(finally)
 
@@ -114,17 +114,43 @@ mainloop inh outh =
 
 -- hIsSeekable: Tells whether a handle is seekable (ex: n/w handle is not)
 
+-- Standard Input, Output and Error
+-- for every h-function there is a non-h function.
+-- non-h function are shortcuts for h-functions with std input / output 
+
+{- In the partial function application terms, 
+getLine = hGetLine stdin
+putStrLn = hPutStrLn stdout
+print = hPrint stdout 
+-}
+
+{-
+Sometimes better to use standard input and output instead of files.
+Works with terminal. Can combine with other programs.
+
+$ echo John | runghc callingpure.hs
+Greetings once again.  What is your name?
+Pleased to meet you, John.
+Your name contains 4 characters.
+
+-}
+
 -- file: ch07/tempfile.hs
 -- Explains various concepts including
 -- System.Directory module
 -- fSeek, fTell
 -- renameFile, removeFile
+-- openTempFile, openBinaryTempFile 
+--    (needs 1. directory to create the temp file, 2. template for naming)
+-- Use "." for current as temporary directory 
+-- Use "System.Directory.getTemporaryDirectory" function to get the best tempdir
+-- return of openTempFile :: (FilePath, Handle)
 
 -- The main entry point.  Work with a temp file in myAction.
 tempFileMain :: IO ()
 tempFileMain = withTempFile "mytemp.txt" myAction
 
-{- The guts of the program.  Called with the path and handle of a temporary
+{- The gist of the program.  Called with the path and handle of a temporary
    file.  When this function exits, that file will be closed and deleted
    because myAction was called from withTempFile. -}
 myAction :: FilePath -> Handle -> IO ()
@@ -203,25 +229,58 @@ toupperLazy :: IO ()
 toupperLazy = do 
     inh <- openFile "input.txt" ReadMode
     outh <- openFile "output.txt" WriteMode
-    inpStr <- hGetContents inh
-    hPutStr outh (map toUpper inpStr)
+    inpStr <- hGetContents inh          -- close handle only after consuming.
+    hPutStr outh (processData inpStr)
     hClose inh
     hClose outh
 
+-- once the processData is done, the inpStr memory is freed
+-- inpStr is what read using hGetContents (could be 20 bytes or 500 GB!)
+processData :: String -> String
+processData = map toUpper
+    
 ------------------------
 -- To Upper with readFile and writeFile functions
+-- readFile is the combo of openFile and hGetContents
+-- readFile :: FilePath -> IO String
+-- writeFile is the combo of openFile WriteMode and writing contents
+-- writeFile :: FilePath -> String -> IO ()
 
 toupperLazy2 :: IO ()
 toupperLazy2 = do 
        inpStr <- readFile "input.txt"
        writeFile "output.txt" (map toUpper inpStr)
+-- no handles associated with readFile and writeFile
+-- no handles to close here!
+
+{-
+Will the call to putStr or writeFile force the entire input string to be loaded 
+into memory at once, just to be written out? 
+The answer is no. 
+
+putStr (and all the similar output functions) write out data as it becomes 
+available. They also have no need for keeping around data already written, 
+so as long as nothing else in the program needs it, the memory can be freed 
+immediately. The string between readFile and writeFile is kind of a pipe 
+linking the two. Data goes in one end, is transformed some way, 
+and flows back out the other. 
+
+Larger files take some time to process, but there is a constant—and low—memory 
+usage while it is being processed. (so, the entire file is not loaded at once)
+
+-}
 
 ------------------------
--- interact function
+-- interact function (Read from standard input and write out to stdout)
 -- takes a function of type (String -> String)
 -- does "getContents stdin" and the result is sent to stdout
---makeUpper :: IO()
+makeUpper :: IO ()
 makeUpper = interact (map toUpper)
 -- But, can work with other files too, with piping in runghc
 -- runghc toupper-lazy4.hs < input.txt > output.txt
 
+-- this will work with piping the input, not in the ghci. see makeUpper.hs
+makeUpper2 :: IO ()
+makeUpper2 = interact ((++) "Your data, in uppercase, is:\n\n" . 
+                 map toUpper)
+                 
