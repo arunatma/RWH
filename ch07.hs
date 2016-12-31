@@ -284,3 +284,9 @@ makeUpper2 :: IO ()
 makeUpper2 = interact ((++) "Your data, in uppercase, is:\n\n" . 
                  map toUpper)
                  
+-- Filters with interact
+-- using 'interact' for filtering
+
+-- read a file and print out every line that has the character 'a'
+-- see fileFilter.hs
+fileFilter = interact (unlines . filter (elem 'a') . lines)				 
