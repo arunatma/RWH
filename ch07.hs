@@ -289,4 +289,65 @@ makeUpper2 = interact ((++) "Your data, in uppercase, is:\n\n" .
 
 -- read a file and print out every line that has the character 'a'
 -- see fileFilter.hs
-fileFilter = interact (unlines . filter (elem 'a') . lines)				 
+fileFilter = interact (unlines . filter (elem 'a') . lines)
+
+-- IO Monad
+-- Pure Functions: Gives the same result for the same input.
+-- Actions: Perform tasks when invoked (change the state of the world)
+{-
+putStrLn :: String -> IO ()
+Takes a string and performs an action (that's printing the string)
+-}
+
+-- Some functions and actions
+str2message :: String -> String
+str2message input = "Data: " ++ input
+
+str2action :: String -> IO ()
+str2action = putStrLn . str2message
+
+list2actions :: [String] -> [IO ()]
+list2actions = map str2action
+-- use 'sequence' to invoke list2actions
+-- sequence $ list2actions ["hi", "hello"]
+-- also provided a 'runall' function below
+
+numbers :: [Int]
+numbers = [1..10]
+
+strings :: [String]
+strings = map show numbers
+
+actions :: [IO ()]
+actions = list2actions strings
+
+printitall :: IO ()
+printitall = runall actions
+
+runall :: [IO ()] -> IO ()
+runall [] = return ()
+runall (firstAction : remainActions) = do firstAction
+                                          runall remainActions
+                                          
+betterRunall = mapM_ (str2action . show) numbers
+
+{-
+mapM and mapM_ are monad mapping function 
+map  maps the function over the given list
+mapM maps the action over given list 
+mapM_ does what mapM does and then executes all the actions
+    ghci> :type mapM
+    mapM :: (Monad m) => (a -> m b) -> [a] -> m [b]
+    ghci> :type mapM_
+    mapM_ :: (Monad m) => (a -> m b) -> [a] -> m ()
+
+    # in terms of generic Traversable / Foldable, instead of list []
+    *Main> :t mapM
+    mapM :: (Monad m, Traversable t) => (a -> m b) -> t a -> m (t b)    
+    *Main> :t mapM_
+    mapM_ :: (Monad m, Foldable t) => (a -> m b) -> t a -> m ()
+    
+    simply,
+    mapM_ x = sequence (mapM x)
+-}
+
