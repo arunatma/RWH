@@ -5,6 +5,7 @@
 
 import System.IO
 import Data.Char(toUpper)
+import System.Environment(getArgs, getProgName)
 
 import System.Directory(getTemporaryDirectory, removeFile, renameFile)
 import System.IO.Error(catchIOError)
@@ -351,3 +352,95 @@ mapM_ does what mapM does and then executes all the actions
     mapM_ x = sequence (mapM x)
 -}
 
+-- Sequencing
+-- 'do' blocks are for joining together actions
+-- 'do' is syntactic sugar for (>>) and (>>=) functions
+{-
+    ghci> :type (>>)
+    (>>) :: (Monad m) => m a -> m b -> m b
+    ghci> :type (>>=)
+    (>>=) :: (Monad m) => m a -> (a -> m b) -> m b
+-}
+-- (>>)  : Perform action a followed by action b and return action b.
+-- (>>=) : Perform action a, use result to perform action b and return action b
+
+-- two lines are printed
+twoPrints = putStrLn "Line 1" >> putStrLn "Line 2"
+
+-- see getBindPut.hs 
+getBindPut = getLine >>= putStrLn
+     
+-- redoing the 'do' block of the basicio function above
+basicioNodo = putStrLn "Greetings!  What is your name?" >>
+    getLine >>=
+    (\inpStr -> putStrLn $ "Welcome to Haskell, " ++ inpStr ++ "!")
+-- Notice the use of (>>) on the first line and the use of (>>=) on the 2nd.
+-- (>>) action performed and forgotten
+-- (>>=) action performed and result carried on to the following function
+
+-- return function puts the pure value in the monad context 
+    
+isGreen :: IO Bool
+isGreen =
+    do putStrLn "Is green your favorite color?"
+       inpStr <- getLine
+       return ((toUpper . head $ inpStr) == 'Y')  -- puts in monad context.
+       
+isYes :: String -> Bool
+isYes inpStr = (toUpper . head $ inpStr) == 'Y'
+
+isGreen1 :: IO Bool
+isGreen1 =
+    do putStrLn "Is green your favorite color?"
+       inpStr <- getLine
+       return (isYes inpStr)       
+
+-- return need not be always at the end of the 'do' block.
+-- note (<-) and return are complementary functions.
+returnTest :: IO ()
+returnTest =
+    do one <- return 1                  -- equivalent of let one = 1
+       let two = 2
+       putStrLn $ show (one + two)
+
+
+-- Can pure functions have side effects?
+-- When you have a String from hGetContents that is passed to a pure function, 
+-- the function has no idea that this String is backed by a disk file. Behaves 
+-- normal, but processing that huge String may cause env to issue I/O commands. 
+-- The pure function isn't issuing them; Happening as a result of the processing 
+-- the pure function is doing, just as with the example of swapping RAM to disk
+
+-- Buffering
+-- I/O system is one of the bottlenecks in processing.
+-- Write to disk is far slower than write to memory!
+-- Buffering: Helps to minimize the number of IO calls and thereby improving 
+-- performance. Instead of requesting several IO for small chunks of data, make 
+-- fewer IO calls with large chunks of data - these large chunks act as buffer.
+
+-- Buffering Modes
+{-
+    NoBuffering     - IO for one char at a time. very poor performance.
+    LineBuffering   - Read till "\n" encountered or a predefined chunk 
+                      (whichever earlier)
+    BlockBuffering  - Fixed Chunks. Best performance of the lot!
+                      Unusable for interactive programs - because it waits for
+                      the fixed chunk even after user completes the input.
+-}
+
+-- get the current buffering mode using hGetBuffering
+curBufferMode = hGetBuffering stdin
+
+-- set the current buffering using hSetBuffering
+setNoBuffering = hSetBuffering stdin (NoBuffering)
+-- hSetBuffering stdin (BlockBuffering Nothing)
+
+-- Flushing the buffer: Use 'hFlush'
+
+-- check commandLine.hs for command line arguments.
+-- System.Console.GetOpt provides tools for command line options.
+
+-- Environment variables
+-- System.Environment 
+-- getEnv for specific variable 
+-- getEnvironment to get the entire set of environment variables.
