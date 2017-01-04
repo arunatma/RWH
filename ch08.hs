@@ -4,6 +4,7 @@
 
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC8
+import Text.Regex.Posix
 
 -- read text file of numbers and print the sum
 readPrintSum = do
@@ -81,3 +82,69 @@ highestCloseFrom path = do
     contents <- LC8.readFile path
     print (highestClose contents)
 
+-- File name matching
+
+-- glob patterns (wild card or shell like patterns)
+-- literals matches themselsves - 'foo' pattern matches 'foo' and nothing else
+-- * matches anything foo* matches football, food etc
+-- foo*.c matches anything that starts with 'foo' and ends with '.c'
+-- ? matches single character. pic??.jpg matches pic01.jpg, pic02.jpg, picAB.jpg
+-- [ ] character class - anything within the character class is valid (as opposed
+-- to the '?' which says anything is valid
+-- [! ] negated character class - match one character, but that should not be 
+-- what provided withing the negated character class.
+-- [0-9] match anything from 0 to 9
+
+-- Haskell does not have a ready library to match the glob patterns.
+-- Haskell has a great regular expression support.  And glob patterns can be 
+-- thought of as a subset of regular expression.
+
+-- regexp matching function (=~) the operator (actually a fn here) is borrowed
+-- from Perl
+-- (=~) TextToMatch Regex 
+matchBool1 = "my left foot" =~ "foo" :: Bool            -- written in infix style
+matchBool2 = "your right hand" =~ "bar" :: Bool
+matchBool3 = "your right hand" =~ "(hand|foot)" :: Bool
+
+-- RegexContext typeclass describes how target (the result of =~) should behave
+-- RegexContext instances are defined for Bool, Int
+-- The same matches seen above can be captured as Int as well.
+-- If captured as Int, returns the total number of matches.
+matchInt1 = "my left foot" =~ "foo" :: Int
+matchInt2 = "your right hand" =~ "bar" :: Int
+matchInt3 = "your right hand" =~ "(hand|foot)" :: Int
+matchInt4 = "honorificabilitudinitatibus" =~ "[aeiou]" :: Int  -- 13
+
+-- if the target is String, we get the actual matched word. (the first match)
+matchString1 = "my left foot" =~ "foo" :: String
+matchString2 = "your right hand" =~ "bar" :: String
+matchString3 = "I, B. Ionsonii, uurit a lift'd batch" =~ "(uu|ii)" :: String
+
+-- [String] - all matched strings
+{-
+matchStrList1 = "my left foot" =~ "foo" :: [String]
+matchStrList2 = "your right hand" =~ "bar" :: [String]
+matchStrList3 = "I, B. Ionsonii, uurit a lift'd batch" =~ "(uu|ii)" :: [String]
+-}
+
+-- (String, String, String) - string before, the matched string, string that 
+-- follows, for the first match 
+pat = "(foo[a-z]*bar|quux)"
+matchTuple1 =
+  "I, B. Ionsonii, uurit a lift'd batch" =~ "(uu|ii)" :: (String,String,String)  
+matchTuple2 = "before foodiebar after" =~ pat :: (String,String,String)
+matchTuple3 = "no match here" =~ pat :: (String,String,String)
+
+-- (String,String,String,[String])
+-- List of all groups in the pattern that matched.  
+matchTupList1 = 
+    "before foodiebar after" =~ pat :: (String,String,String,[String])
+    
+-- (Int, Int) - starting offset and the lenght for the first match
+-- [(Int, Int)] - List of all offsets and lengths
+matchIntTuple1 = "my left foot" =~ "foo" :: (Int, Int)
+matchIntTuple2 = "before foodiebar after" =~ pat :: (Int,Int)
+--matchIntTuple3 = "before foodiebar after quux" =~ pat :: [(Int,Int)]
+--matchIntTuple4 = "i foobarbar a quux" =~ pat :: [(Int,Int)]
+
+-- Somehow [String] and [(Int, Int)] is not working.
