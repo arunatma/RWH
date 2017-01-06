@@ -6,6 +6,7 @@ import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as LC8
 import Text.Regex.Posix
 
+import GlobRegex        -- module written in this folder (part of Chapter 8)
 -- read text file of numbers and print the sum
 readPrintSum = do
 		contents <- getContents
@@ -148,3 +149,34 @@ matchIntTuple2 = "before foodiebar after" =~ pat :: (Int,Int)
 --matchIntTuple4 = "i foobarbar a quux" =~ pat :: [(Int,Int)]
 
 -- Somehow [String] and [(Int, Int)] is not working.
+
+-- Text.Regex.Base module defines common API for regex
+-- Text.Regex.Posix is one such implementation (with POSIX semantics)
+
+-- Perl vs POSIX implementation.
+-- Perl is leftmost match; POSIX is greediest match 
+-- (foo|fo*) on foooooo will provide 'foo' as match in Perl; 'foooooo' in POSIX
+-- Perl type regex matching has many features which are not there in POSIX.
+-- Perl type regex is more uniform in syntax
+
+-- Translating a glob pattern to a regular expression
+-- see GlobRegex.hs
+
+globMatch1 =  "foo.c" =~ globToRegex "f??.c" False :: Bool
+globMatch2 =  "test.c" =~ globToRegex "t[ea]s*" False :: Bool
+globMatch3 =  "task.c" =~ globToRegex "t[ea]s*" False :: Bool
+globMatch4 =  "TASK.c" =~ globToRegex "t[ea]s*" False :: Bool   -- False
+globMatch5 =  "TASK.c" =~ globToRegex "t[ea]s*" True :: Bool    -- True
+
+-- Python has a 'fnmatch' module that has a 'translate' function.
+-- 'translate' is Python equivalent of globToRegex
+-- 'translate' is written in loop
+
+{-
+
+    globToRegex' (c:cs) = escape c ++ globToRegex' cs
+    
+    This is not tail recursion.
+    The result of globToRegex' is passed to (++) function.
+    For tail recursion, the result to be the result of recursive function call
+-}
