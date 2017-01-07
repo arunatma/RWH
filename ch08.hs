@@ -180,3 +180,7 @@ globMatch5 =  "TASK.c" =~ globToRegex "t[ea]s*" True :: Bool    -- True
     The result of globToRegex' is passed to (++) function.
     For tail recursion, the result to be the result of recursive function call
 -}
+
+-- Making use of the pattern matcher
+-- using the glob functions to search for files and directories in OS.
+-- see Glob.hs
