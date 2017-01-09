@@ -115,4 +115,8 @@ listPlain ignoreCase dirName baseName = do
     return (if exists then [baseName] else [])
 
 -- Exercise
--- Implement matching on "**" wild cards    
+-- 1. Make case ignoring feature without altering the signature of namesMatching
+-- 2. Replacement fn (from System.Posix.Files) for doesNameExist in Unix systems
+-- 3. Implement matching on "**" wild cards, to recursively search on sub
+--    directories.
+

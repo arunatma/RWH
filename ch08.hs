@@ -7,6 +7,11 @@ import qualified Data.ByteString.Lazy.Char8 as LC8
 import Text.Regex.Posix
 
 import GlobRegex        -- module written in this folder (part of Chapter 8)
+import Glob
+
+import System.FilePath (replaceExtension)
+import System.Directory (doesFileExist, renameDirectory, renameFile)
+
 -- read text file of numbers and print the sum
 readPrintSum = do
 		contents <- getContents
@@ -184,3 +189,25 @@ globMatch5 =  "TASK.c" =~ globToRegex "t[ea]s*" True :: Bool    -- True
 -- Making use of the pattern matcher
 -- using the glob functions to search for files and directories in OS.
 -- see Glob.hs
+
+-- Using Glob.hs and GlobRegex.hs to work with files.
+renameWith :: (FilePath -> FilePath) -> FilePath -> IO FilePath
+renameWith f path = do
+    let path' = f path
+    rename path path'
+    return path'
+
+rename :: FilePath -> FilePath -> IO ()
+rename old new = do
+    isFile <- doesFileExist old
+    let f = if isFile then renameFile else renameDirectory
+    f old new
+
+-- now replacing all source files with ".cc" extension to ".cpp"
+cc2cpp =
+  mapM (renameWith (flip replaceExtension ".cpp")) =<< 
+    namesMatching False "*.cc"
+    
+-- Exercise:    
+-- Rewrite all the functions to make use of the Globs directly instead of 
+-- converting it to a regex.
