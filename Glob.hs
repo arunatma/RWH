@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 -- Glob.hs
 -- part of chapter 8: Efficient file handling and regular expressions
 
@@ -9,7 +8,7 @@ import System.Directory (doesDirectoryExist, doesFileExist,
                          
 import System.FilePath (dropTrailingPathSeparator, splitFileName, (</>))
 
-import Control.Exception (handle)
+import Control.Exception (handle, SomeException)
 import Control.Monad (forM)
 import GlobRegex (matchesGlob)
 
@@ -71,11 +70,11 @@ doesNameExist name = do
 -- listMatches returns the list of files matching the given glob pattern.
 listMatches :: Bool -> FilePath -> String -> IO [String]
 listMatches ignoreCase dirName pat = do
---    using handle function causes error -- so commenting these lines.
---    handle handler action
---    where 
---        handler = const (return [])
---        action = do 
+    handle handler action
+    where 
+        handler :: SomeException -> IO [String]
+        handler = const (return [])
+        action = do 
             dirName' <- directory dirName
             names <- getDirectoryContents dirName'
             let names' = if isHidden pat
