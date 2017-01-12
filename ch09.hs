@@ -161,7 +161,116 @@ saferFileSize path = handle handler action
 -}
 
 getFileSize :: FilePath -> IO (Maybe Integer)       
-getFileSize path = handle (\_ -> return Nothing) $
-  bracket (openFile path ReadMode) hClose $ \h -> do
-    size <- hFileSize h
-    return (Just size)
+getFileSize path = handle handler action
+    where 
+        handler :: SomeException -> IO (Maybe Integer)
+        handler = (\_ -> return Nothing)
+        action = bracket (openFile path ReadMode) hClose $ \h -> do
+            size <- hFileSize h
+            return (Just size)
+
+-- A domain specific language for predicates
+-- Writing a predicate to search for a C++ file > 128KB
+myTest path _ (Just size) _ = takeExtension path == ".cpp" && size > 128 * 1024
+myTest _ _ _ _              = False
+
+-- making the predicate function better
+
+
+type InfoP a =  FilePath        -- path to directory entry
+             -> Permissions     -- permissions
+             -> Maybe Integer   -- file size (Nothing if not file)
+             -> UTCTime       -- last modified
+             -> a
+
+-- defining separate predicates for path and size
+-- InfoP FilePath is a type synonym for the function with type signature
+-- (FilePath -> Permissions -> Maybe Integer -> UTCTime -> FilePath)
+-- So, pathP is a function taking four args. and returning a String (FilePath)
+pathP :: InfoP FilePath
+pathP path _ _ _ = path
+
+-- InfoP Integer is a type synonym for the function with type signature
+-- (FilePath -> Permissions -> Maybe Integer -> UTCTime -> Integer)
+-- So, sizeP is a function that takes four arguments and returns an Integer
+sizeP :: InfoP Integer
+sizeP _ _ (Just size) _ = size
+sizeP _ _ Nothing     _ = -1
+
+-- check whether the predicate is of a given value 'k'
+-- take an InfoP function, and the given value 'k', return a function that 
+-- behaves as below:
+-- The return function takes four arguments, apply the InfoP fn over the 4 
+-- arguments and checks the value of fn is equal to the value 'k' supplied.
+equalP :: (Eq a) => InfoP a -> a -> InfoP Bool
+equalP f k = \w x y z -> f w x y z == k
+
+-- "InfoP Bool" is nothing but a synonym for "Predicate"
+-- So, the return type of equalP function is a "Predicate"
+
+-- same equalP fn, using currying instead of lambda function.
+equalP' :: (Eq a) => InfoP a -> a -> Predicate
+equalP' f k w x y z = f w x y z == k
+
+
+-- checking whether sizeP works and type checks!
+{-
+    ghci> :type betterFind (sizeP `equalP` 1024)
+    betterFind (sizeP `equalP` 1024) :: FilePath -> IO [FilePath]
+-}
+
+-- equalP checks for (==)
+-- we need to write similar functions for other binary operations (>), (<) etc
+-- That would mean boiler plating.
+-- But, not needed in Haskell
+
+-- make the fn operator as an argument, instead of writing one fn for each
+liftP :: (a -> b -> c) -> InfoP a -> b -> InfoP c
+liftP q f k w x y z = f w x y z `q` k     -- look at the similarity with equalP
+
+greaterP, lesserP :: (Ord a) => InfoP a -> a -> InfoP Bool
+greaterP = liftP (>)
+lesserP = liftP (<)
+
+-- lifting lets us reduce the boiler plating and reusing the code.
+-- also look at the intentional placement of 'q' in liftP
+-- That helped in writing greaterP and lesserP concise!
+
+-- Gluing Predicates together
+-- Plain simple way!
+simpleAndP :: InfoP Bool -> InfoP Bool -> InfoP Bool
+simpleAndP f g w x y z = f w x y z && g w x y z
+
+-- Using the lifting concept
+liftP2 :: (a -> b -> c) -> InfoP a -> InfoP b -> InfoP c
+liftP2 q f g w x y z = f w x y z `q` g w x y z
+
+andP = liftP2 (&&)
+orP = liftP2 (||)
+
+-- writing liftP in terms of liftP2
+constP :: a -> InfoP a
+constP k _ _ _ _ = k
+
+-- liftP' q f k w x y z = f w x y z `q` constP k w x y z
+-- So, 
+liftP' q f k = liftP2 q f (constP k)
+
+-- Combinators!
+-- The functions taking other functions as arguments and returning functions.
+-- lift category of functions are all combinators.
+
+-- Rewriting the myTest function using our lift functions (defined above)
+{-
+    myTest path _ (Just size) _ =
+        takeExtension path == ".cpp" && size > 131072
+    myTest _ _ _ _ = False    
+-}
+
+liftPath :: (FilePath -> a) -> InfoP a
+liftPath f w _ _ _ = f w
+
+myTest2 = (liftPath takeExtension `equalP` ".cpp") `andP`
+          (sizeP `greaterP` (128 * 1024))
+          
+          
