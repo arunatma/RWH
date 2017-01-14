@@ -62,7 +62,7 @@ simpleFind p path = do
 -- testing the fn 
 -- find all files with ".c" extension recursively    
 filesWithExtC = simpleFind (\p -> takeExtension p == ".c")
--- this is a function that needs to be supplied the directory name 
+-- remember that this is a fn, argument is directory name. 
 
 filesWithExtHS = simpleFind (\p -> takeExtension p == ".hs")
 
@@ -109,7 +109,7 @@ betterFind :: Predicate -> FilePath -> IO [FilePath]
 betterFind p path = getRecursiveContents path >>= filterM check 
     where check name = do       -- check :: FilePath -> IO Bool
             perms <- getPermissions name
-            size <- return Nothing --getFileSize name
+            size <- getFileSize name
             modified <- getModificationTime name
             return (p name perms size modified)
 
@@ -175,8 +175,6 @@ myTest path _ (Just size) _ = takeExtension path == ".cpp" && size > 128 * 1024
 myTest _ _ _ _              = False
 
 -- making the predicate function better
-
-
 type InfoP a =  FilePath        -- path to directory entry
              -> Permissions     -- permissions
              -> Maybe Integer   -- file size (Nothing if not file)
@@ -195,7 +193,7 @@ pathP path _ _ _ = path
 -- So, sizeP is a function that takes four arguments and returns an Integer
 sizeP :: InfoP Integer
 sizeP _ _ (Just size) _ = size
-sizeP _ _ Nothing     _ = -1
+sizeP _ _ Nothing _     = -1
 
 -- check whether the predicate is of a given value 'k'
 -- take an InfoP function, and the given value 'k', return a function that 
@@ -272,5 +270,46 @@ liftPath f w _ _ _ = f w
 
 myTest2 = (liftPath takeExtension `equalP` ".cpp") `andP`
           (sizeP `greaterP` (128 * 1024))
-          
-          
+
+-- Defining new infix operators
+(==?) :: (Eq a) => InfoP a -> a -> InfoP Bool
+(==?) = equalP
+(>?) :: (Ord a) => InfoP a -> a -> InfoP Bool
+(>?)  = greaterP
+(<?) :: (Ord a) => InfoP a -> a -> InfoP Bool
+(<?)  = lesserP
+
+(&&?) = andP
+(||?) = orP
+
+-- rewriting the myTest2
+myTest3 = (liftPath takeExtension ==? ".cpp") &&? (sizeP >? 131072)
+
+-- in the expression above, the parentheses are necessary
+-- otherwise the the expression is evaluated from left to right
+-- (((liftPath takeExtension) ==? ".cpp") &&? sizeP) >? 131072,  NOT OUR NEED!!
+-- treated as inflixl 9
+-- To overcome that, we need to write fixity declarations
+
+-- Check the fixity of the normal operators like (==) and (&&)
+{-
+    ghci> :info ==
+    class Eq a where
+      (==) :: a -> a -> Bool
+      ...
+        -- Defined in GHC.Base
+    infix 4 ==
+    ghci> :info &&
+    (&&) :: Bool -> Bool -> Bool 	-- Defined in GHC.Base
+    infixr 3 &&
+    ghci> :info >
+    class (Eq a) => Ord a where
+      ...
+      (>) :: a -> a -> Bool
+      ...
+        -- Defined in GHC.Base
+    infix 4 >
+-}
+-- So, == and > are infix 4,  && is infixr 3
+
+-- Defining these for our lift operators
