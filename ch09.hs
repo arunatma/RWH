@@ -11,7 +11,7 @@
 --      3. last modified before this date
 --      4. More such and with combinations of two or more using "and" "or"
 
-import Control.Monad (forM, filterM)
+import Control.Monad (forM, filterM, liftM)
 import System.Directory (Permissions(..), getPermissions, getModificationTime, 
     doesDirectoryExist, getDirectoryContents)
 import System.Time (ClockTime(..))    
@@ -332,13 +332,13 @@ data Info = Info {
 -- as we used the record syntax, we got 4 accessor functions like "infoPath",
 -- "infoPerms", without explicitly defining them
  
-traverse :: ([Info] -> [Info]) -> FilePath -> IO [Info]
-traverse order path = do
+traverse' :: ([Info] -> [Info]) -> FilePath -> IO [Info]
+traverse' order path = do
     names <- getUsefulContents path
     contents <- mapM getInfo (path : map (path </>) names)
     liftM concat $ forM (order contents) $ \info -> do
         if isDirectory info && infoPath info /= path
-            then traverse order (infoPath info)
+            then traverse' order (infoPath info)
             else return [info]
 -- liftM above applies concat function to the strings inside the IO monad.
 -- So, liftM lifts the concat fn (normally applid to [[String]]) so as it can 
@@ -370,3 +370,24 @@ getInfo path = do
 --    alphabetical order?     
 -- 2. Using 'id' as a control function "traverse id" performs preorder 
 --    traversal.  Write a control fn that performs post-order traversal.
+--    Preorder traversal means parents directory before listing the children
+-- 3. Make the predicates and combinators to work for the new "Info" type
+-- 4. Fn wrapper for traverse with two predicates - one for traversal and 
+--    and another for filtering the results
+
+-- Same "traverse" function which is less dense and more verbose.
+traverseVerbose order path = do
+    names <- getDirectoryContents path
+    let usefulNames = filter (`notElem` [".", ".."]) names
+    contents <- mapM getEntryName ("" : usefulNames)
+    recursiveContents <- mapM recurse (order contents)
+    return (concat recursiveContents)
+  where getEntryName name = getInfo (path </> name)
+        isDirectory info = case infoPerms info of
+                                Nothing -> False
+                                Just perms -> searchable perms
+        recurse info = do
+            if isDirectory info && infoPath info /= path
+            then traverseVerbose order (infoPath info)
+            else return [info]
+            
