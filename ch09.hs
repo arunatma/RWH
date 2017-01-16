@@ -313,3 +313,60 @@ myTest3 = (liftPath takeExtension ==? ".cpp") &&? (sizeP >? 131072)
 -- So, == and > are infix 4,  && is infixr 3
 
 -- Defining these for our lift operators
+infix 4 ==?
+infixr 3 &&?
+infix 4 >?
+
+-- now, rewriting myTest3 without paranthesis
+myTest4 = liftPath takeExtension ==? ".cpp" &&? sizeP >? 131072
+
+-- We need to restrict the traversal and the order of traversals.  We need 
+-- some other data structure (similar one) specialized for the same.
+-- Instead of InfoP a, defining an algebraic data type "InfoP"
+data Info = Info {
+      infoPath :: FilePath
+    , infoPerms :: Maybe Permissions
+    , infoSize :: Maybe Integer
+    , infoModTime :: Maybe UTCTime
+    } deriving (Eq, Ord, Show)
+-- as we used the record syntax, we got 4 accessor functions like "infoPath",
+-- "infoPerms", without explicitly defining them
+ 
+traverse :: ([Info] -> [Info]) -> FilePath -> IO [Info]
+traverse order path = do
+    names <- getUsefulContents path
+    contents <- mapM getInfo (path : map (path </>) names)
+    liftM concat $ forM (order contents) $ \info -> do
+        if isDirectory info && infoPath info /= path
+            then traverse order (infoPath info)
+            else return [info]
+-- liftM above applies concat function to the strings inside the IO monad.
+-- So, liftM lifts the concat fn (normally applid to [[String]]) so as it can 
+-- be applied to IO [[String]]
+            
+getUsefulContents :: FilePath -> IO [String]
+getUsefulContents path = do
+    names <- getDirectoryContents path
+    return (filter (`notElem` [".", ".."]) names)
+    
+isDirectory :: Info -> Bool
+isDirectory = maybe False searchable . infoPerms
+
+maybeIO :: IO a -> IO (Maybe a)
+maybeIO act = handle handler action 
+    where handler :: SomeException -> IO (Maybe a)
+          handler = (\_ -> return Nothing)
+          action  = (Just `liftM` act)
+
+getInfo :: FilePath -> IO Info
+getInfo path = do
+    perms <- maybeIO (getPermissions path)
+    size <- maybeIO (bracket (openFile path ReadMode) hClose hFileSize)
+    modified <- maybeIO (getModificationTime path)
+    return (Info path perms size modified)
+    
+-- Exercises
+-- 1. What should you pass to traverse to traverse a directory tree in revers
+--    alphabetical order?     
+-- 2. Using 'id' as a control function "traverse id" performs preorder 
+--    traversal.  Write a control fn that performs post-order traversal.
