@@ -15,10 +15,11 @@ import Control.Monad (forM, filterM, liftM)
 import System.Directory (Permissions(..), getPermissions, getModificationTime, 
     doesDirectoryExist, getDirectoryContents)
 import System.Time (ClockTime(..))    
-import System.FilePath ((</>), takeExtension)
+import System.FilePath ((</>), takeExtension, takeFileName)
 import Control.Exception (bracket, handle, SomeException)
 import System.IO (IOMode(..), hClose, hFileSize, openFile)
 import Data.Time
+import Data.Char (toLower)
 
 -- Recursively listing a directory
 getRecursiveContents :: FilePath -> IO [FilePath]
@@ -320,6 +321,17 @@ infix 4 >?
 -- now, rewriting myTest3 without paranthesis
 myTest4 = liftPath takeExtension ==? ".cpp" &&? sizeP >? 131072
 
+-- Controlling the traversal
+-- When traversing the filesystem, we'd like to give ourselves more control 
+-- over which directories we enter, and when. An easy way in which we can 
+-- allow this is to pass in a function that takes a list of subdirectories of a 
+-- given directory, and returns another list. 
+-- This list can have elements removed, or it can be ordered differently than 
+-- the original list, or both. 
+
+-- The simplest such control function is 'id', which will return its input 
+-- list unmodified
+
 -- We need to restrict the traversal and the order of traversals.  We need 
 -- some other data structure (similar one) specialized for the same.
 -- Instead of InfoP a, defining an algebraic data type "InfoP"
@@ -366,8 +378,8 @@ getInfo path = do
     return (Info path perms size modified)
     
 -- Exercises
--- 1. What should you pass to traverse to traverse a directory tree in revers
---    alphabetical order?     
+-- 1. What should you pass to traverse to traverse a directory tree in reverse
+--    alphabetical order?     ('reverse')
 -- 2. Using 'id' as a control function "traverse id" performs preorder 
 --    traversal.  Write a control fn that performs post-order traversal.
 --    Preorder traversal means parents directory before listing the children
@@ -391,3 +403,90 @@ traverseVerbose order path = do
             then traverseVerbose order (infoPath info)
             else return [info]
             
+-- How this is different?
+-- Local definitions instead of using partial applications
+-- case expression for 'isDirectory' instead of 'maybe' combinator
+-- No use of liftM here - replaced by manual 'concat' and 'return'
+-- local functions isDirectory and getUsefulContents merged in the fn itself.
+
+-- Core idea: Find the balance between density (conciseness) and readability!
+-- See the story on Andrew, Zack and Monica here - interesting. Read comments!
+
+
+-- Short fall still existing in traverse function:
+-- To filter the list, still we need all names in the list for 'order' function 
+-- [Info] -> [Info] to work.
+-- Possible Soulution:
+-- Think of file system traversal as a 'fold' over the directory hierarchy!
+
+-- foldr and foldl'
+-- also add an element of control to the fold (represented by Algebraic Datatype)
+data Iterate seed = Done     {unwrap :: seed}
+                  | Skip     {unwrap :: seed}
+                  | Continue {unwrap :: seed}
+                    deriving (Show)
+                    
+type Iterator seed = seed -> Info -> Iterate seed  -- this is the fold fn.
+-- Take a seed and a folder structure (represented by Info) and returns a new 
+-- seed along with the instruction (to skip, continue or done already)
+-- The instructions are the constructors of the Iterate data type
+
+-- If the instruction is 'Done' : traversal stops immediately
+-- If the instruction is 'Skip' : Traversal will not recurse into the directory
+-- If the instruction is 'Continue' : Continue, using the wrapped value as 
+--   input to the next fold function.
+
+foldTree :: Iterator a -> a -> FilePath -> IO a
+foldTree iter initSeed path = do
+        endSeed <- fold initSeed path
+        return (unwrap endSeed)
+    where
+        fold seed subpath = getUsefulContents subpath >>= walk seed
+        
+        walk seed (name : names) = do
+            let path' = path </> name
+            info <- getInfo path'
+            case iter seed info of
+                done@(Done _ ) -> return done
+                Skip seed'     -> walk seed' names
+                Continue seed'
+                    | isDirectory info -> do
+                        next <- fold seed' path'
+                        case next of
+                            done@(Done _) -> return done
+                            seed''        -> walk (unwrap seed'') names
+                    | otherwise -> walk seed' names
+        walk seed _ = return (Continue seed)
+
+-- foldTree fn is just a wrapper for 'fold' function 
+-- fold is a local function: so no need to pass the 'iter' argument
+-- walk fn can get path from foldTree's argument.
+-- walk is a tail recursive loop (adv: can stop early, if need be)
+-- fold calls walk; walk calls fold to traverse to sub directories.
+
+-- Iterator in practice: (an example input to foldTree)
+-- Looks into at most 3 bmp images; and not traversing to subversion folders
+atMostThreePictures :: Iterator [FilePath]
+atMostThreePictures paths info
+    | length paths == 3
+      = Done paths
+    | isDirectory info && takeFileName path == ".svn"
+      = Skip paths
+    | extension `elem` [".jpg", ".png"]
+      = Continue (path : paths)
+    | otherwise
+      = Continue paths
+  where extension = map toLower (takeExtension path)
+        path = infoPath info
+        
+-- To use this:
+-- foldTree atMostThreePictures []
+
+-- another iterator
+countDirectories count info =
+    Continue (if isDirectory info
+              then count + 1
+              else count)        
+
+-- totalDirs fn takes a path and counts the total subdirs in the path.
+totalDirs = foldTree countDirectories 0
