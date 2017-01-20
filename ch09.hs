@@ -483,6 +483,8 @@ atMostThreePictures paths info
 -- foldTree atMostThreePictures []
 
 -- another iterator
+-- countDirectories :: Num seed => seed -> Info -> Iterate seed
+countDirectories :: Iterator Integer
 countDirectories count info =
     Continue (if isDirectory info
               then count + 1
@@ -490,3 +492,87 @@ countDirectories count info =
 
 -- totalDirs fn takes a path and counts the total subdirs in the path.
 totalDirs = foldTree countDirectories 0
+
+-- Exercises (Yet to be done)
+-- 1. Modify foldTree to allow the caller to change the order of traversal of 
+--    entries in the directory.
+-- 2. The foldTree function performs preorder traversal.  Modify it to allow 
+--    the caller to determine the order of traversal.
+-- 3. Write a combinator library that makes it possible to express the kind of
+--    iterators that the foldTree accepts.  Does it make the iterators you write
+--    any more succint.
+
+-- Coding Guidelines
+-- 1. Never use tabs (always use spaces)
+-- 2. Readbility takes precedence over cleverness
+-- 3. Use camelCase for naming
+-- 4. Search for a pre-existing library function, before venturing to write own
+-- 5. Try see if you can write your fn with composition of available functions
+-- 6. Break an expression to readable pieces
+-- 7. Keep the line width to 80 characters max
+
+-- Layout guidelines
+tidyLet = let foo = undefined
+              bar = foo * 2 
+          in undefined
+
+-- Following are legal; but affects readability          
+weirdLet = let foo = undefined
+               bar = foo * 2
+    in undefined
+    
+strangeLet = let foo = undefined
+                 bar = foo * 2 in
+    undefined
+    
+-- do block (usually left dangling at the end of line)
+commonDo :: IO ()
+commonDo = do
+    something <- undefined
+    return ()
+
+rareDo :: IO ()    
+rareDo =
+    do something <- undefined
+       return ()
+       
+-- Curly braces and semicolons are rarely used
+unusualPunctuation =
+    [ (x,y) | x <- [1..a], y <- [1..b] ] where {
+                                           b = 7;
+ a = 6 }
+
+preferredLayout = [ (x,y) | x <- [1..a], y <- [1..b] ]
+    where b = 7
+          a = 6
+
+-- "where" placement
+-- better to have 2 or 4 spaces for the indents
+goodWhere = take 5 lambdas
+    where lambdas = []
+
+alsoGood =
+    take 5 lambdas
+  where
+    lambdas = []
+
+badWhere =           -- legal, but ugly and hard to read
+    take 5 lambdas
+    where
+    lambdas = []
+    
+-- Exercises
+{-
+    Although the file finding code in this chapter is a good vehicle for 
+    learning, it's not ideal for real systems programming tasks, because 
+    Haskell's portable I/O libraries don't expose enough information to let us 
+    write interesting and complicated queries. 
+
+
+1. Port the code from this chapter to your platform's native API, either 
+    System.Posix or System.Win32. 
+
+2. Add the ability to find out who owns a directory entry to your code. Make 
+    this information available to predicates
+    
+-}
