@@ -207,7 +207,7 @@ modifyOffset initState newOffset = initState {offset = newOffset}
 parseByte :: Parse Word8
 parseByte =
     getState ==> \initState ->
-    case L8.uncons (string initState) of
+    case L.uncons (string initState) of
         Nothing                 -> bail "no more input"
         Just (byte, remainder)  -> 
             putState newState ==> \_ -> identity byte
@@ -259,16 +259,95 @@ putState s = Parse (\_ -> Right ((), s))
 -- one is "bail" and another is "(==>)"
 
 bail :: String -> Parse a
-bail err Parse $ \s -> Left $ "byte offset " ++ show (offset s) ++ ": " ++ err
+bail err = Parse $ \s -> Left $ "byte offset " ++ show (offset s) ++ ": " ++ err
 
 -- (==>) chains the parsers together
+
 (==>) :: Parse a -> (a -> Parse b) -> Parse b
 firstParser ==> secondParser = Parse chainedParser
     where chainedParser initState = 
-        case runParse firstParser initState of
-            Left errMessage               -> Left errMessage
-            Right (firstResult, newState) -> 
-                runParse (secondParser firstResult) newState
+            case runParse firstParser initState of
+                Left errMessage               -> 
+                    Left errMessage
+                Right (firstResult, newState) -> 
+                    runParse (secondParser firstResult) newState
                 
 
+-- Parse type is a wrapper to a function
+-- (==>) combines two such parse functions - Parse, take out the value, pass on
+-- the value derived from first to second parser.
+
+-- Functors
+-- Revisiting map function
+plus1 = map (+1) [1, 2, 3]
+showMe = map show [1, 2, 3]
+
+-- map like function in binary tree
+data Tree a = Node (Tree a) (Tree a) 
+            | Leaf a
+            deriving (Show)
+            
+-- let us assume the tree contain strings (Tree String)
+-- to get the length of strings in each of the node (again in the form of Tree)
+treeLengths :: Foldable t => Tree (t a) -> Tree Int
+treeLengths (Leaf s) = Leaf (length s)
+treeLengths (Node l r) = Node (treeLengths l) (treeLengths r)
+
+-- what if instead of finding the lengths, we need to prefix 'a' to each?
+-- Abstraction helps
+treeMap :: (a -> b) -> Tree a -> Tree b
+treeMap f (Leaf a)   = Leaf (f a)
+treeMap f (Node l r) = Node (treeMap f l) (treeMap f r)
+
+-- now treeLengths fn in terms of treeMap is:
+treeLen :: Tree [Char] -> Tree Int
+treeLen = treeMap length
+
+-- to prefix with 'a'
+treePrefix :: Tree [Char] -> Tree [Char]
+treePrefix = treeMap ('a':)
+{-
+    ghci> let tree = Node (Leaf "foo") (Node (Leaf "x") (Leaf "quux"))
+    ghci> treeLen tree
+    Node (Leaf 3) (Node (Leaf 1) (Leaf 4))
+
+    ghci> treePrefix tree
+    Node (Leaf "afoo") (Node (Leaf "ax") (Leaf "aquux"))
+    
+    ghci> treeMap (even . length) (treePrefix tree)
+    Node (Leaf True) (Node (Leaf True) (Leaf False))
+    
+-}
+
+-- Haskell has a type-class to generalise treeMap
+{-
+    class Functor f where
+        fmap :: (a -> b) -> f a -> f b
+-}    
+
+-- Any data type to want to be an instance of the Functor type-class should
+-- implement the 'fmap' function.  
+
+-- fmap is a lifting function.  Lifts the function from the plain context to 
+-- that of the container context
+-- fmap :: (a -> b) -> (f a -> f b)
+-- another way to look at fmap:  Take a function that operates on plain values
+-- Give me another function that does the same on contextual values
+
+-- making Tree an instance of a Functor
+instance Functor Tree where
+    fmap = treeMap
+
+-- making list [] an instance of a Functor (already done in GHC.Base)
+{-    
+    instance Functor [] where
+        fmap = map    
+-}    
+
+-- making Maybe an instance of a Functor (already done in GHC.Base)
+{-    
+    instance Functor Maybe where
+        fmap _ Nothing = Nothing
+        fmap f (Just x) = Just (f x)
+-}    
 
