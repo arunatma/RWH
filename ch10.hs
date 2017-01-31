@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 -- Real World Haskell
 -- Chapter 10: Code case study: parsing a binary data format
 -- http://book.realworldhaskell.org/read/code-case-study-parsing-a-binary-data-format.html
@@ -350,4 +351,68 @@ instance Functor Tree where
         fmap _ Nothing = Nothing
         fmap f (Just x) = Just (f x)
 -}    
+
+-- We can make Functor instances for datatypes with only one parameter
+-- We cannot do it for Either a b or (a, b)
+
+-- Also no constraint on data type definition
+
+-- Valid Functor
+data Foo a = Foo a
+           
+instance Functor Foo where
+    fmap f (Foo a) = Foo (f a)
+    
+
+-- Invalid to write a Functor instance on Bar, as it has a constraint
+{-
+    data Eq a => Bar a = Bar a
+    
+    instance Functor Bar where
+        fmap f (Bar a) = Bar (f a)
+-}
+-- Better have the constraints on the function definitions
+
+-- Adding a constraint to a type definition is never a good idea. 
+-- That forces you to add type constraints to each function that operates on 
+-- the values of that type. This is deprecated in the latest versions
+{- 
+    data (Ord a) => OrdStack a = Bottom
+                               | Item a (OrdStack a)
+                                 deriving (Show)
+-}
+
+-- infix use of fmap
+fmapEx1 = (1+) `fmap` [2,3,4] ++ [5,6,7]    -- [3,4,5,5,6,7]
+fmapEx2 = (1+) `fmap` ([2,3,4] ++ [5,6,7])  -- [3,4,5,6,7,8]
+fmapEx3 = (1+) <$> ([2,3,4] ++ [5,6,7])     -- [3,4,5,6,7,8]
+-- (<$>) is nothing but fmap infix operator defined in Data.Functor
+-- (<$>) :: Functor f => (a -> b) -> f a -> f b
+
+--Flexible Instances
+--------------------
+-- We cannot create a functor for a data type with more than one variable, but
+-- we can do so it we make all others concrete expcept for one
+-- Not possible to create Functer for Either 
+-- But, it is possible to create functor instance for Either a
+
+{-
+Already defined in GHC.Base.
+To define this we need to use the Language Pragma Flexible Instances
+
+    instance Functor (Either a) where
+        fmap g (Right x) = Right (g x)
+        fmap g (Left x) = Left x    
+-}
+
+-- Functor Laws
+lhsFunctorLaw1 = id (Node (Leaf "a") (Leaf "b"))
+rhsFunctorLaw1 = fmap id (Node (Leaf "a") (Leaf "b"))
+--  Law 1: fmap id == id 
+
+lhsFunctorLaw2 = (fmap even . fmap length) (Just "twelve")
+rhsFunctorLaw2 = fmap (even . length) (Just "twelve")
+--  Law 2: fmap (f . g) == fmap f . fmap g
+
+
 
