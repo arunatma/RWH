@@ -34,7 +34,7 @@
 -- We need both text and binary oriented bytestrings
 import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.ByteString.Lazy as L
-import Data.Char (isSpace)
+import Data.Char (isSpace, chr)
 import Data.Int (Int64)
 import Data.Word (Word8)
 
@@ -414,5 +414,69 @@ lhsFunctorLaw2 = (fmap even . fmap length) (Just "twelve")
 rhsFunctorLaw2 = fmap (even . length) (Just "twelve")
 --  Law 2: fmap (f . g) == fmap f . fmap g
 
+-- Functor instance for Parse data type
+-- The function that we are 'fmap'ping should be applied to the current result
+-- of the parse, with the parse state untouched. So, use the 'identity' function
+-- and map the function 'f' only on the result.
 
+instance Functor Parse where
+    fmap f parser = parser ==> \result -> 
+                    identity (f result)
 
+-- any such functor instance should follow the 2 functor laws
+-- 1st law:
+plain = parse parseByte L.empty           -- Left "byte offset 0: no more input"
+withId = parse (id <$> parseByte) L.empty -- Left "byte offset 0: no more input"
+
+inWord = L8.pack "foo"
+plain2 = parse parseByte inWord           -- Right 102
+withId2 = parse (id <$> parseByte) inWord -- Right 102
+
+-- 2nd law: (Composability)
+lhsParseLaw2 = parse ((chr . fromIntegral) <$> parseByte) inWord
+rhsParseLaw2 = parse (chr <$> fromIntegral <$> parseByte) inWord
+
+-- Using functors for parsing
+-- Let us say we want to write the parseChar function similar to parseByte
+-- We need not duplicate the same, and make use of fmap
+-- The functor takes the result of the parse and applies a function (we can
+-- as well convert from Byte to Char)
+w2c :: Word8 -> Char
+w2c = chr . fromIntegral
+
+parseChar :: Parse Char
+parseChar = w2c <$> parseByte
+
+-- Using functors to "peek"
+-- Look at what the byte is without actually consuming it
+-- Nothing when at the end of the string
+-- remember 'string' is an accessor function in ParseState definition
+peekByte :: Parse (Maybe Word8)
+peekByte = (fmap fst . L.uncons . string) <$> getState
+-- here also two fmap lifting (using fmap and <$>), due to Parse and Maybe
+
+-- Similarly we can write a peekChar using the fmap lifting
+peekChar :: Parse (Maybe Char)
+peekChar = fmap w2c <$> peekByte    -- Two lifting because of Parse and Maybe
+
+-- writing parseWhile, analogous to takeWhile
+parseWhile :: (Word8 -> Bool) -> Parse [Word8]
+parseWhile p = (fmap p <$> peekByte) ==> \mp ->
+               if mp == Just True
+               then parseByte ==> \b ->
+                    (b:) <$> parseWhile p
+               else identity []
+
+-- same function, without using functors
+parseWhileVerbose :: (Word8 -> Bool) -> Parse [Word8]
+parseWhileVerbose p =
+    peekByte ==> \mc ->
+    case mc of
+        Nothing -> identity []
+        Just c | p c ->
+                   parseByte ==> \b ->
+                   parseWhileVerbose p ==> \bs ->
+                   identity (b:bs)
+               | otherwise -> 
+                   identity []
+                   
