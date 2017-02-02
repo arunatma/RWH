@@ -530,4 +530,3 @@ parseBytes n =
     in putState st' ==>&
        assert (L.length h == n') "end of input" ==>&
        identity h
-       
