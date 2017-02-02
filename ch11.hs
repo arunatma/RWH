@@ -103,5 +103,104 @@ testModel = quickCheck (prop_sort_model :: [Integer] -> Bool)
 -- implementation or prototype that, while inefficient, is correct.  We write
 -- a better implementation and want to ascertain the functionality of model
 
+-- Testing Case Study
+-- Specifying a pretty printer
+data Doc = Empty
+         | Char Char
+         | Text String
+         | Line
+         | Concat Doc Doc
+         | Union Doc Doc
+         deriving (Show, Eq)
 
+-- making use of "Arbitrary" type class from QuickCheck library
+-- This type class provides "arbitrary" function
+{-
+    class Arbitrary a where
+      arbitrary   :: Gen a         
+-}
+-- This helps in generating data of any type 'a'
+
+-- The random generators run in "Gen" monad context
+-- We would require the following functions, defined in the QuickCheck library
+{-
+    elements :: [a] -> Gen a
+    choose   :: Random a => (a, a) -> Gen a
+    oneof    :: [Gen a] -> Gen a
+-}    
+
+-- a sample data type
+data Ternary 
+    = Yes
+    | No
+    | Unknown
+    deriving (Eq, Show)
+    
+-- providing an "Arbitrary" instance for this data type
+instance Arbitrary Ternary where
+    arbitrary = elements [Yes, No, Unknown]
+
+-- another way of providing "Arbitrary" instance via "choose" function    
+{- 
+    instance Arbitrary Ternary where
+        arbitrary = do
+            n <- choose (0, 2) :: Gen Int
+            return $ case n of
+                          0 -> Yes
+                          1 -> No
+                          _ -> Unknown
+-}
+
+-- That was to generate a single random value for Ternary
+-- To generate a random pair of random values (a, b)
+{- 
+    instance (Arbitrary a, Arbitrary b) => Arbitrary (a, b) where
+        arbitrary = do
+            x <- arbitrary
+            y <- arbitrary
+            return (x, y)
+-}
+
+-- instance for Char (already defined in the library)
+{-
+    instance Arbitrary Char where
+        arbitrary = elements (['A'..'Z'] ++ ['a' .. 'z'] ++ " ~!@#$%^&*()")
+    
+-}
+
+instance Arbitrary Doc where
+    arbitrary = do
+        n <- choose (1, 6) :: Gen Int
+        case n of
+             1 -> return Empty
+
+             2 -> do x <- arbitrary
+                     return (Char x)
+
+             3 -> do x <- arbitrary
+                     return (Text x)
+
+             4 -> return Line
+
+             5 -> do x <- arbitrary
+                     y <- arbitrary
+                     return (Concat x y)
+
+             6 -> do x <- arbitrary
+                     y <- arbitrary
+                     return (Union x y)
+
+-- A better implementation of the same, using "oneof"
+{-
+
+    instance Arbitrary Doc where
+        arbitrary =
+            oneof [ return Empty
+                  , liftM  Char   arbitrary
+                  , liftM  Text   arbitrary
+                  , return Line
+                  , liftM2 Concat arbitrary arbitrary
+                  , liftM2 Union  arbitrary arbitrary ]
+
+-}
 
