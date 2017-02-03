@@ -14,6 +14,8 @@
 import Test.QuickCheck
 import Data.List
 
+import Prettify
+                 
 -- testing a custom sort function
 qsort :: Ord a => [a] -> [a]
 qsort []     = []
@@ -105,14 +107,16 @@ testModel = quickCheck (prop_sort_model :: [Integer] -> Bool)
 
 -- Testing Case Study
 -- Specifying a pretty printer
-data Doc = Empty
-         | Char Char
-         | Text String
-         | Line
-         | Concat Doc Doc
-         | Union Doc Doc
-         deriving (Show, Eq)
-
+-- imported from Prettify
+{-
+    data Doc = Empty
+             | Char Char
+             | Text String
+             | Line
+             | Concat Doc Doc
+             | Union Doc Doc
+             deriving (Show, Eq)
+-}
 -- making use of "Arbitrary" type class from QuickCheck library
 -- This type class provides "arbitrary" function
 {-
@@ -204,3 +208,77 @@ instance Arbitrary Doc where
 
 -}
 
+-- Two basic functions on Doc
+-- 1. a nullary function (null document constant) and 2. append
+-- empty :: Doc
+-- (<>) :: Doc -> Doc -> Doc
+
+prop_empty_id x = 
+    empty <> x == x
+  &&
+    x <> empty == x
+    
+docTest1 = quickCheck prop_empty_id
+
+prop_char c   = char c   == Char c
+prop_text s   = text s   == if null s then Empty else Text s
+prop_line     = line     == Line
+prop_double d = double d == text (show d)
+
+docTest2 = quickCheck prop_char 
+docTest3 = quickCheck prop_text 
+docTest4 = quickCheck prop_line 
+docTest5 = quickCheck prop_double 
+
+-- fold (defined in Prettify) takes a function and a list of Doc, combines
+-- using the function into a single Doc 
+-- 'hcat' appends all Doc together - defined in Prettify, it is just fold (<>)
+-- we shall do property testing for hcat
+prop_hcat xs = hcat xs == glue xs
+    where 
+        glue []     = empty
+        glue (d:ds) = d <> glue ds
+        
+docTest6 = quickCheck prop_hcat
+
+-- property testing for punctuate function
+-- punctuate is the same logic of 'intersperse' function from Data.List
+prop_punctuate s xs = punctuate s xs == intersperse s xs
+
+{-
+    This is failing for multiple cases!
+    
+    *Main> quickCheck prop_punctuate
+    *** Failed! Falsifiable (after 5 tests and 1 shrink):
+    Union (Char '\144') (Union (Char '\226') Line)
+    [Char '&',Char '\r']
+    *Main> quickCheck prop_punctuate
+    *** Failed! Falsifiable (after 5 tests and 1 shrink):
+    Char '\DC4'
+    [Char '{',Concat (Text "") (Text "\224\DEL")]
+    *Main> quickCheck prop_punctuate
+    *** Failed! Falsifiable (after 4 tests and 1 shrink):
+    Empty
+    [Empty,Line]    
+    
+-}
+
+-- Reason:
+-- Our Prettify optimises the redundant empty Doc, The model implementation 
+-- (intersperse) doesn't replicate this scenario
+
+-- Rewriting to take care of that scenario
+prop_punctuate' s xs = punctuate s xs == combine (intersperse s xs)
+    where
+        combine []           = []
+        combine [x]          = [x]
+        combine (x:Empty:ys) = x : combine ys
+        combine (Empty:y:ys) = y : combine ys
+        combine (x:y:ys)     = x `Concat` y : combine ys
+        
+docTest7 = quickCheck prop_punctuate'
+
+-- see quickTestRun.hs and PrettifyTest.hs
+        
+-- Measuring Test Coverage with HPC
+-- Haskell Program Coverage
