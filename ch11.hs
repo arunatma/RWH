@@ -282,3 +282,6 @@ docTest7 = quickCheck prop_punctuate'
         
 -- Measuring Test Coverage with HPC
 -- Haskell Program Coverage
+
+-- This chapter is yet to be completed.  Not continued because 
+-- Test.QuickCheck.Batch module is not available
