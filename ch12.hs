@@ -12,7 +12,7 @@
 
 
 import Data.Array (Array(..), (!), bounds, elems, indices,
-                   ixmap, listArray)
+                   ixmap, listArray, accum)
 
 import Control.Applicative ((<$>))
 import Control.Monad (forM_)
@@ -156,4 +156,57 @@ foldA1 f a = foldA f (a ! fst (bounds a)) a
 -- fold is possible only in one dimension. On two dimension, row-wise and 
 -- column-wise options come and there are multiple ways to think of a fold 
 -- over n-dimensional data.
+
+-- Modifying Array elements
+-- arrays are immutable, modification means recreating the entire array with 
+-- the change
+-- 'accum' functions takes an array and a list of (index, value) pairs to 
+-- change it to the 'value' at the 'index' in the array.
+-- accum  :: Ix i => (e -> a -> e) -> Array i e -> [(i, a)] -> Array i e
+-- So, this kind of modification is extremely costly
+
+-- Exercise
+-- 1. Write a function that takes two arguments: a four-element tuple, andd an 
+-- integer. The integer is to represent the position of the element inside the
+-- tuple. 0 gets the first element, 1 the second element and so on
+data TupleFour a b c d = First a | Second b | Third c | Fourth d deriving (Show)
+takeFromTuple :: (a, b, c, d) -> Int -> TupleFour a b c d
+takeFromTuple (x, y, z, w) k 
+    | k == 0 = First x
+    | k == 1 = Second y
+    | k == 2 = Third z
+    | k == 3 = Fourth w
+    | otherwise = error "Out of Bounds"
+    
+-- Back to the goal of this chapter: Decoding the bar code
+-- Better to have encoder for reference. Useful to cross check.
+
+encodeEAN13 :: String -> String
+encodeEAN13 = concat . encodeDigits . map digitToInt
+
+encodeDigits :: [Int] -> [String]
+encodeDigits s@(first:rest) = 
+    outerGuard ++ lefties ++ centerGuard ++ righties ++ [outerGuard]
+  where (left, right) = splitAt 5 rest
+        lefties = zipWith leftEncode (parityCodes ! first) left
+        righties = map rightEncode (right ++ [checkDigit s])
+        
+leftEncode :: Char -> Int -> String
+leftEncode '1' = (leftOddCodes !)
+leftEncode '0' = (leftEvenCodes !)
+
+rightEncode :: Int -> String
+rightEncode = (rightCodes !)
+
+outerGuard = "101"
+centerGuard = "01010"
+
+-- string to encode: 12 digits long.  Encoder addes the 13th checkDigit 
+-- Encoded as group of two 6-digits.
+
+-- Each digit in the left group is encoded using either odd or even parity, 
+-- The parity is chosen based on the bits of the first digit in the string. 
+-- If a bit of the first digit is zero ==> encoded with even parity
+-- If one ==> encoded with odd parity
+-- This helps in maintaining the compatibility with UPC-A standard.
 
