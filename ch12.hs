@@ -186,7 +186,7 @@ encodeEAN13 = concat . encodeDigits . map digitToInt
 
 encodeDigits :: [Int] -> [String]
 encodeDigits s@(first:rest) = 
-    outerGuard ++ lefties ++ centerGuard ++ righties ++ [outerGuard]
+    outerGuard : lefties ++ centerGuard : righties ++ [outerGuard]
   where (left, right) = splitAt 5 rest
         lefties = zipWith leftEncode (parityCodes ! first) left
         righties = map rightEncode (right ++ [checkDigit s])
@@ -210,3 +210,87 @@ centerGuard = "01010"
 -- If one ==> encoded with odd parity
 -- This helps in maintaining the compatibility with UPC-A standard.
 
+-- Constraints on the decoder:
+-- Camera images are generally stored in JPEG format
+-- JPEG decoder has its own standard.
+-- So, instead of that, we use netpbm file described in Ch 10.
+
+-- Objective: Take a camera image and extract a valid barcode.
+-- How?
+-- Convert color data into an easily workable format
+-- Sample a single scan line and guess the info
+-- From the guesses, create a list of valid decodings.
+
+-- Processing a netpbm color image (we did grayscale image in ch10)
+-- Identifying string is "P6" here as opposed to "P5" in grayscale
+-- Rest of the header is identical to the grayscale format.
+-- In the body: Each pixel is represented by 3 bytes (Red, Green and Blue)
+
+-- Data structure for the image:
+-- 2-Dimensional array of images.
+type Pixel = Word8
+type RGB = (Pixel, Pixel, Pixel)
+
+type Pixmap = Array (Int, Int) RGB
+
+-- indices start at zero
+-- also we are not storing the dimensions of the image explicitly (can be got
+-- using the "bounds" function of the array)
+
+parseRawPPM :: Parse Pixmap
+parseRawPPM = 
+    parseWhileWith w2c (/= '\n') ==> \header -> skipSpaces ==>&
+    assert (header == "P6") "invalid raw header" ==>&
+    parseNat ==> \width -> skipSpaces ==>&
+    parseNat ==> \height -> skipSpaces ==>&
+    parseNat ==> \maxValue ->
+    assert (maxValue == 255) "max value out of spec" ==>&
+    parseByte ==>&
+    parseTimes (width * height) parseRGB ==> \pxs ->
+    identity (listArray ((0,0),(width-1, height-1)) pxs)
+
+parseRGB :: Parse RGB
+parseRGB = parseByte ==> \r ->
+           parseByte ==> \g ->
+           parseByte ==> \b ->
+           identity (r, g, b)
+
+-- parseTimes calls another parser for a given number of times, building up a 
+-- list of results           
+parseTimes :: Int -> Parse a -> Parse [a]
+parseTimes 0 _ = identity []
+parseTimes n p = p ==> \x -> (x:) <$> parseTimes (n - 1) p
+           
+-- Grayscale conversion
+luminance :: (Pixel, Pixel, Pixel) -> Pixel
+luminance (r, g, b) = round (r' * 0.30 + g' * 0.59 + b' * 0.11)
+    where r' = fromIntegral r
+          g' = fromIntegral g
+          b' = fromIntegral b
+
+type Graymap = Array (Int, Int) Pixel
+
+pixmapToGraymap :: Pixmap -> Graymap
+pixmapToGraymap = fmap luminance
+
+-- greyscale image to binary - To see whether the pixel is on or off.
+-- We can use Pixel for representing 1 or 0
+-- But this may lead to some cases where we mistakenly give bit for pixel or 
+-- pixel for bit and compiler cannot catch.
+-- Even a type synonmym cannot help - as compiler treats both equally
+-- So, use a different data type to help ourselves restricting the mixed use.
+
+data Bit = Zero | One deriving (Eq, Show)
+
+threshold :: (Ix k, Integral a) => Double -> Array k a -> Array k Bit
+threshold n a = binary <$> a
+    where binary i | i < pivot = Zero
+                   | otherwise = One
+          pivot    = round $ least + (greatest - least) * n
+          least    = fromIntegral $ choose (<) a
+          greatest = fromIntegral $ choose (>) a
+          choose f = foldA1 $ \x y -> if f x y then x else y
+          
+          
+                   
+          
