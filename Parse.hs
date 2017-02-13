@@ -6,6 +6,7 @@ module Parse where
 
 import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.ByteString.Lazy as L
+import Control.Applicative ((<$>))
 import Data.Char (isSpace, chr, isDigit)
 import Data.Int (Int64)
 import Data.Word (Word8)
@@ -173,7 +174,7 @@ data Tree a = Node (Tree a) (Tree a)
             
 -- let us assume the tree contain strings (Tree String)
 -- to get the length of strings in each of the node (again in the form of Tree)
-treeLengths :: Foldable t => Tree (t a) -> Tree Int
+-- treeLengths :: Foldable t => Tree (t a) -> Tree Int
 treeLengths (Leaf s) = Leaf (length s)
 treeLengths (Node l r) = Node (treeLengths l) (treeLengths r)
 

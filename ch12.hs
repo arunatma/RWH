@@ -291,6 +291,99 @@ threshold n a = binary <$> a
           greatest = fromIntegral $ choose (>) a
           choose f = foldA1 $ \x y -> if f x y then x else y
           
-          
-                   
-          
+-- So, what all has been done till now?
+-- 1. Converted from colour to monochrome
+-- 2. Made a threshold of 1 or 0 based on the value of the pixel.
+
+-- On a barcode scan, if we had to encode 9 780132 114677, Left group encodes
+-- 780132 and right group encodes 114677.  9 is encoded in the parity and the 
+-- last 7 is the check digit.
+
+-- The bar code image captured has to be adjusted for contrast, then applied
+-- threshold so that we get a better sense of the lines
+-- The decoding code must be robust because in some cases the bars are too 
+-- thick, too thin, or not exactly where they're supposed to be. The widths of 
+-- the bars will depend on distance from camera.  So, no assumptions can be 
+-- made on the widths.
+
+-- How to approach?
+-- Find the digits that "might" be encoded at a given position.
+-- Assumptions:
+-- 1. We are working with a single row of barcode image
+-- 2. We know the left edge of the bar code (we know where the barcode begins)
+
+-- How to overcome the width assumption (not knowing what width each bar is)
+-- Run Length Encoding!
+
+type Run = Int
+type RunLength a = [(Run, a)]
+
+runLength :: Eq a => [a] -> RunLength a
+runLength = map rle . group 
+	where rle xs = (length xs, head xs)
+	
+-- new function "group" here
+-- group :: Eq a => [a] -> [[a]]
+-- puts sequential identical elements in sub lists
+-- group [1,2,2,3,5,3,4,5,1] == [[1],[2,2],[3],[5],[3],[4],[5],[1]]
+
+bits = [0,0,1,1,0,0,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0]
+rleBits = runLength bits
+-- [(2,0),(2,1),(2,0),(2,1),(6,0),(4,1),(4,0)]
+
+stateName = "Mississippi"
+rleState = runLength stateName
+-- [(1,'M'),(1,'i'),(2,'s'),(1,'i'),(2,'s'),(1,'i'),(2,'p'),(1,'i')]
+
+-- throw away the element (since it will always be 1 or 0)
+-- for a list of strings, get the runs alone
+runLengths :: Eq a => [a] -> [Run]
+runLengths = map fst . runLength
+
+-- Scaling run lengths and finding approximate matches
+-- scale the run lengths, so they sum up to 1
+type Score = Ratio Int
+
+scaleToOne :: [Run] -> [Score]
+scaleToOne xs = map divide xs
+    where divide d = fromIntegral d / divisor
+          divisor = fromIntegral (sum xs)
+-- A more compact alternative that "knows" we're using Ratio Int:
+-- scaleToOne xs = map (% sum xs) xs
+
+type ScoreTable = [[Score]]
+
+-- SRL: Scored Run Length
+asSRL :: [String] -> ScoreTable
+asSRL = map (scaleToOne . runLengths)
+
+leftOddSRL = asSRL leftOddList
+leftEvenSRL = asSRL leftEvenList
+rightSRL = asSRL rightList
+paritySRL = asSRL parityList
+
+-- Advantage of 'Score' type synonym
+-- We do not expose the type to other functions, later if we want to change
+-- it to Double, instead of Ratio Int, it is much easier to do
+
+-- Comparing two 'Score's using the distance calculation
+-- Zero distance means exact match and large differences means the Scores do 
+-- not match - or the Scores do not represent the same patterns
+
+distance :: [Score] -> [Score] -> Score
+distance a b = sum . map abs $ zipWith (-) a b
+
+sampleRun = scaleToOne [2,6,4,4]
+dist1 = distance sampleRun (head leftEvenSRL)		-- 13 % 28
+dist2 = distance sampleRun (head leftOddSRL)		-- 17 % 28
+
+-- Given a scaled run length table, we need to choose the best few matches
+-- in the table for the given input
+bestScores :: ScoreTable -> [Run] -> [(Score, Int)]
+bestScores srl ps = take 3. sort $ scores
+	where scores = zip [distance d (scaleToOne ps) | d <- srl] digits
+	      digits = [0..9]
+		  
+-- Introduction of list comprehension
+-- Happened to use above:
+-- [distance d (scaleToOne ps) | d <- srl] 
