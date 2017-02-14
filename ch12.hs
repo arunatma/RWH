@@ -387,3 +387,45 @@ bestScores srl ps = take 3. sort $ scores
 -- Introduction of list comprehension
 -- Happened to use above:
 -- [distance d (scaleToOne ps) | d <- srl] 
+listComp1 = [ (a,b) | a <- [1,2], b <- "abc" ]		
+-- [(1,'a'),(1,'b'),(1,'c'),(2,'a'),(2,'b'),(2,'c')]
+-- Expression on the left side of vertical bar (|) is evaluated for each 
+-- combination of "generator expression" on the right
+-- "Depth First" order. For the first element of first list, every element of 
+-- second list is evaluated.
+
+-- This is similar to a set expression in linear algebra.
+-- (x, y) such that x belongs to N, y belongs to W, x is odd and y is even
+-- and both x and y < 10 
+listComp2 = [(x,y) | x <- [1,2..9], y <- [0,1..9], odd x, even y]
+-- "odd x" here is a guard.  x <- [1,2..9] is a generator
+-- Guard is of type "Bool", if False, the element is skipped
+
+-- We can use guard for an expression using generator variables
+listComp3 = [ (a,b) | a <- [1..6], b <- [5..7], even (a + b ^ 2) ]
+
+-- Binding local variables within generator expressions using "let"
+-- join characters when both are vowels
+vowel = (`elem` "aeiou")
+listComp4 =  [ x | a <- "erlang", b <- "clojure", let x = [a,b], all vowel x ]
+-- ["eo","eu","ee","ao","au","ae"]
+
+-- pattern match in generator expression
+-- failing a match causes no error - just that the element is skipped
+checkList = [(1,'y'),(3,'e'),(5,'p'), (3,'z')]
+listComp5 = [ a | (3,a) <-  checkList]			-- "ez"
+-- picking out all items, which has 3 as the first element.
+
+-- Multiple version of "bestScores" function
+{-
+	-- our original
+	zip [distance d (scaleToOne ps) | d <- srl] digits
+
+	-- the same expression, expressed without a list comprehension
+	zip (map (flip distance (scaleToOne ps)) srl) digits
+
+	-- the same expression, written entirely as a list comprehension
+	[(distance d (scaleToOne ps), n) | d <- srl, n <- digits]
+-}
+
+-- Coming back to 
