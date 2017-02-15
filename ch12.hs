@@ -22,6 +22,7 @@ import Data.List (foldl', group, sort, sortBy, tails)
 import Data.Maybe (catMaybes, listToMaybe)
 import Data.Ratio (Ratio)
 import Data.Word (Word8)
+import Data.Function (on)
 import System.Environment (getArgs)
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Data.Map as M
@@ -320,8 +321,8 @@ type RunLength a = [(Run, a)]
 
 runLength :: Eq a => [a] -> RunLength a
 runLength = map rle . group 
-	where rle xs = (length xs, head xs)
-	
+    where rle xs = (length xs, head xs)
+    
 -- new function "group" here
 -- group :: Eq a => [a] -> [[a]]
 -- puts sequential identical elements in sub lists
@@ -374,20 +375,20 @@ distance :: [Score] -> [Score] -> Score
 distance a b = sum . map abs $ zipWith (-) a b
 
 sampleRun = scaleToOne [2,6,4,4]
-dist1 = distance sampleRun (head leftEvenSRL)		-- 13 % 28
-dist2 = distance sampleRun (head leftOddSRL)		-- 17 % 28
+dist1 = distance sampleRun (head leftEvenSRL)        -- 13 % 28
+dist2 = distance sampleRun (head leftOddSRL)        -- 17 % 28
 
 -- Given a scaled run length table, we need to choose the best few matches
 -- in the table for the given input
 bestScores :: ScoreTable -> [Run] -> [(Score, Int)]
 bestScores srl ps = take 3. sort $ scores
-	where scores = zip [distance d (scaleToOne ps) | d <- srl] digits
-	      digits = [0..9]
-		  
+    where scores = zip [distance d (scaleToOne ps) | d <- srl] digits
+          digits = [0..9]
+          
 -- Introduction of list comprehension
 -- Happened to use above:
 -- [distance d (scaleToOne ps) | d <- srl] 
-listComp1 = [ (a,b) | a <- [1,2], b <- "abc" ]		
+listComp1 = [ (a,b) | a <- [1,2], b <- "abc" ]        
 -- [(1,'a'),(1,'b'),(1,'c'),(2,'a'),(2,'b'),(2,'c')]
 -- Expression on the left side of vertical bar (|) is evaluated for each 
 -- combination of "generator expression" on the right
@@ -413,19 +414,46 @@ listComp4 =  [ x | a <- "erlang", b <- "clojure", let x = [a,b], all vowel x ]
 -- pattern match in generator expression
 -- failing a match causes no error - just that the element is skipped
 checkList = [(1,'y'),(3,'e'),(5,'p'), (3,'z')]
-listComp5 = [ a | (3,a) <-  checkList]			-- "ez"
+listComp5 = [ a | (3,a) <-  checkList]            -- "ez"
 -- picking out all items, which has 3 as the first element.
 
 -- Multiple version of "bestScores" function
 {-
-	-- our original
-	zip [distance d (scaleToOne ps) | d <- srl] digits
+    -- our original
+    zip [distance d (scaleToOne ps) | d <- srl] digits
 
-	-- the same expression, expressed without a list comprehension
-	zip (map (flip distance (scaleToOne ps)) srl) digits
+    -- the same expression, expressed without a list comprehension
+    zip (map (flip distance (scaleToOne ps)) srl) digits
 
-	-- the same expression, written entirely as a list comprehension
-	[(distance d (scaleToOne ps), n) | d <- srl, n <- digits]
+    -- the same expression, written entirely as a list comprehension
+    [(distance d (scaleToOne ps), n) | d <- srl, n <- digits]
 -}
 
--- Coming back to 
+-- Coming back to bar code recognition
+-- For each match in left group, we need to remember whether the match is found
+-- in even parity or odd parity table
+data Parity a = Even a | Odd a | None a deriving (Show)
+
+fromParity :: Parity a -> a
+fromParity (Even a) = a
+fromParity (Odd a) = a
+fromParity (None a) = a
+
+parityMap :: (a -> b) -> Parity a -> Parity b
+parityMap f (Even a) = Even (f a)
+parityMap f (Odd a) = Odd (f a)
+parityMap f (None a) = None (f a)
+
+instance Functor Parity where
+    fmap = parityMap
+    
+-- sort parity encoded values based on the values.
+-- using "on" function from Data.Function
+{-
+    on :: (a -> a -> b) -> (c -> a) -> c -> c -> b
+    on f g x y = g x `f` g y
+-}
+
+-- compareWithoutParity = compare `on` fromParity
+
+    
