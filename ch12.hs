@@ -453,7 +453,69 @@ instance Functor Parity where
     on :: (a -> a -> b) -> (c -> a) -> c -> c -> b
     on f g x y = g x `f` g y
 -}
+compareWithoutParity :: Ord a => (Parity a) -> (Parity a) -> Ordering
+compareWithoutParity = compare `on` fromParity
 
--- compareWithoutParity = compare `on` fromParity
+type Digit = Int
 
-    
+bestLeft :: [Run] -> [Parity (Score, Digit)]
+bestLeft ps = sortBy compareWithoutParity 
+              ((map Odd (bestScores leftOddSRL ps)) ++
+               (map Even (bestScores leftEvenSRL ps)))
+
+
+bestRight :: [Run] -> [Parity (Score, Digit)]
+bestRight = map None . bestScores rightSRL
+
+-- instead of Parity and fromParity function, we can use the following
+-- record syntax
+data AltParity a = AltEven {fromAltParity :: a}
+                 | AltOdd  {fromAltParity :: a}
+                 | AltNone {fromAltParity :: a}
+                   deriving (Show)
+
+-- The Show instance for the variant that uses record syntax is considerably 
+-- more verbose!!
+{-
+    ghci> show $ Even 1
+    "Even 1"
+    ghci> show $ AltEven 1
+    "AltEven {fromAltParity = 1}"
+    ghci> length . show $ Even 1
+    6
+    ghci> length . show $ AltEven 1
+    27
+-}
+
+-- Chunking a list
+-- Each digit in a barcode is encoded with a run of four digits.
+-- Flat list that represent a row to four-element lists.
+chunkWith :: ([a] -> ([a], [a])) -> [a] -> [[a]]
+chunkWith _ [] = []
+chunkWith f xs = let (h, t) = f xs
+                 in h : chunkWith f t
+                 
+chunksOf :: Int -> [a] -> [[a]]
+chunksOf n = chunkWith (splitAt n)
+
+-- It's somewhat rare that we need to write generic list manipulation functions 
+-- like this. Most provided in Data.List itself
+
+-- Generating list of candidates
+-- Barcode must start with a black bar (Zero) and must have enough bars  
+-- application of bestLeft, bestRight results in empty list => no match then.
+-- If there is a match, return a list of lists of parity encoded digits.
+-- [elem1 to elem12] 
+-- Each of elem1 to elem12 is a list, containing digits ordered by match quality
+candidateDigits :: RunLength Bit -> [[Parity Digit]]
+candidateDigits ((_, One):_) = []
+candidateDigits rle | length rle < 59 = []
+candidateDigits rle 
+    | any null match = []
+    | otherwise      = map (map (fmap snd)) match
+  where match = map bestLeft left ++ map bestRight right
+        left = chunksOf 4 . take 24 . drop 3 $ runLengths
+        right = chunksOf 4 . take 24 . drop 32 $ runLengths
+        runLengths = map fst rle
+        
+        
