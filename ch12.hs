@@ -519,3 +519,67 @@ candidateDigits rle
         runLengths = map fst rle
         
         
+-- Data.Map (internally using balanced trees)
+-- Map k v (key and value)
+-- Strict evaluation for keys; lazy evaluation for values.
+-- Refer to the piece on "Life without hash and arrays" 
+
+emptyMap = M.empty                          -- fromList []
+oneElement = M.singleton "key" "Value"      -- fromList [("key","Value")]
+-- fromList 
+-- M.fromList :: Ord k => [(k, a)] -> M.Map k a
+-- Map is shown using fromList 
+
+-- no pattern matching on map values.
+-- 'lookup' function 
+-- M.lookup :: (Ord k, Monad m) => k -> M.Map k a -> m a
+-- using lookup function on oneElement
+findInOneElement inKey = case M.lookup inKey oneElement of 
+    Just v -> "Yes, Found"
+    Nothing -> "Not Found"
+
+keyFound1 = findInOneElement "key"              -- "Yes, Found"
+keyFound2 = findInOneElement "key2"             -- "Not Found"
+
+-- using findWithDefault instead of lookup 
+keyFound3 = M.findWithDefault "DefaultMsg: No Such Key" "key" oneElement
+keyFound4 = M.findWithDefault "DefaultMsg: No Such Key" "key2" oneElement
+
+-- insert and insertWith' functions
+-- insert: gets a key and a value and overwrites the existing value
+-- insertWith': gets a combining fn, a key, a value, overwrites with combined 
+-- value using the fn, new value and existing value.
+
+map1 = M.insert "foo" "fooVal" oneElement
+-- fromList [("foo","fooVal"),("key","Value")]
+
+map2 = M.insert "key" "newVal" oneElement
+-- fromList [("key","newVal")]
+
+map3 = M.insertWith' (++) "key" "Val2" map2
+-- fromList [("key","Val2newVal")]
+-- M.insertWith' :: (Ord k) => (a -> a -> a) -> k -> a -> M.Map k a -> M.Map k a
+
+-- tick (') in M.insertWith' => combining fn is evaluated strictly.
+-- M.insertWith -> the lazy variant not usually used - means the value is 
+-- stored in a lazy fashion
+
+-- Comment section:
+-- insertWith' is now deprecated, because Data.Map has been split into 
+-- Data.Map.Lazy and Data.Map.Strict??
+
+-- M.delete :: (Ord k) => k -> M.Map k a -> M.Map k a
+-- Deleting the key from the map (along with the value)
+map4 = M.delete "key" map1
+-- fromList [("foo","fooVal")]
+
+-- Combining two maps using "union" function 
+-- If there are same keys in the two maps - the one provided in the first map 
+-- argument is prevails. "left biased"
+map5 = oneElement `M.union` M.singleton "key2" "val2"
+-- fromList [("key","Value"),("key2","val2")]
+
+map6 = oneElement `M.union` map2
+-- fromList [("key","Value")]
+
+
