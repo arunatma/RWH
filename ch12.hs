@@ -582,4 +582,78 @@ map5 = oneElement `M.union` M.singleton "key2" "val2"
 map6 = oneElement `M.union` map2
 -- fromList [("key","Value")]
 
+-- Back to decoding bar codes.
+-- Many candidates for the last 12 digits of barcode
+-- Also, to use the parity of the first 6 digits to decipher the first digit.
 
+{-
+    ghci> product . map length . candidateDigits $ input
+    34012224
+-}
+-- That many brute force combinations!!
+
+-- Solving for check-digit.
+type Map a = M.Map Digit [a]
+-- key is the check digit, value is the sequence that evaluates to this chk dgt
+
+type DigitMap = Map Digit
+type ParityMap = Map (Parity Digit)
+-- these are the solution maps.
+
+-- given a single digit, updating the existing solution map.
+updateMap :: Parity Digit               -- new digit
+          -> Digit                      -- existing key
+          -> [Parity Digit]             -- existing digit sequence
+          -> ParityMap                  -- map to update
+          -> ParityMap                  -- resultant updated map.
+          
+updateMap digit key seq = insertMap key (fromParity digit) (digit:seq)
+
+insertMap :: Digit -> Digit -> [a] -> Map a -> Map a 
+insertMap key digit val m = val `seq` M.insert key' val m
+    where key' = (key + digit) `mod` 10
+    
+-- For each digit in a sequence, we'll generate a new solution map, using that 
+-- digit and an older solution map.
+
+useDigit :: ParityMap -> ParityMap -> Parity Digit -> ParityMap
+useDigit old new digit = 
+    new `M.union` M.foldWithKey (updateMap digit) M.empty old
+    
+single :: Digit -> ParityMap     
+single n = M.singleton n [Even n]
+
+use1 = useDigit (single 1) M.empty (Even 1)   -- fromList [(2,[Even 1,Even 1])]
+use2 = useDigit (single 1) (single 2) (Even 2)
+-- fromList [(2,[Even 2]),(3,[Even 2,Even 1])]
+-- first (2, [Even 2]) is the dictionary (Map) for (single 2)
+-- This new Map is combined with the old map (single 1) - with old map being 
+-- adjusted for the 'digit' supplied which is (Even 2) here.
+
+-- a fold using the useDigit 
+-- to incorporate or take in all the digits supplied 
+incorporateDigits :: ParityMap -> [Parity Digit] -> ParityMap
+incorporateDigits old digits = foldl' (useDigit old) M.empty digits
+
+inc1 = incorporateDigits (M.singleton 0 []) [Even 1, Even 5]
+-- fromList [(1,[Even 1]),(5,[Even 5])]
+
+-- building a complete solution map 
+-- refer to the checkDigit definition at the beginning of this chapter.
+finalDigits :: [[Parity Digit]] -> ParityMap
+finalDigits = foldl' incorporateDigits (M.singleton 0 []) 
+            . mapEveryOther (map (fmap (*3))) 
+-- the finalDigits should be 11 digit long (leaving the first digit)
+
+firstDigit :: [Parity a] -> Digit
+firstDigit = snd 
+           . head
+           . bestScores paritySRL
+           . runLengths
+           . map parityBit
+           . take 6
+   where parityBit (Even _) = Zero
+         parityBit (Odd _) = One
+
+         
+            
