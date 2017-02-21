@@ -655,5 +655,81 @@ firstDigit = snd
    where parityBit (Even _) = Zero
          parityBit (Odd _) = One
 
-         
+-- combine all the digits
+addFirstDigit :: ParityMap -> DigitMap
+addFirstDigit = M.foldWithKey updateFirst M.empty
+
+updateFirst :: Digit -> [Parity Digit] -> DigitMap -> DigitMap
+updateFirst key seq = insertMap key digit (digit:renormalize qes)
+    where renormalize = mapEveryOther (`div` 3) . map fromParity
+          digit = firstDigit qes
+          qes = reverse seq
+        
+buildMap :: [[Parity Digit]] -> DigitMap
+buildMap = M.mapKeys (10 -) 
+         . addFirstDigit
+         . finalDigits
+
+-- finding the correct sequence
+solve :: [[Parity Digit]] -> [[Digit]]
+solve [] = []
+solve xs = catMaybes $ map (addCheckDigit m) checkDigits
+    where checkDigits = map fromParity (last xs)
+          m = buildMap (init xs)
+          addCheckDigit m k = (++ [k]) <$> M.lookup k m
+          
+{-
+    ghci> listToMaybe . solve . candidateDigits $ input
+    Just [9,7,8,0,1,3,2,1,1,4,6,7,7]
+-}
+
+-- Working with row data
+-- The input to the bar code is a single row from the bar code image.
+withRow :: Int -> Pixmap -> (RunLength Bit -> a) -> a
+withRow n greymap f = f . runLength . elems $ posterized
+    where posterized = threshold 0.4 . fmap luminance . row n $ greymap
+
+row :: (Ix a, Ix b) => b -> Array (a, b) c -> Array a c
+row j a = ixmap (l, u) project a
+    where project i = (i, j)
+          ((l, _), (u, _)) = bounds a
+          
+-- fmap transforms the values in the array
+-- ixmap transforms the indices in the array
+-- ixmap is a powerful function for slicing and dicing an array.
+-- first argument: bounds of the new array to be formed.
+--     here we are converting a 2-Dimensional Array to a 1 dimensional array
+-- second argument: projection function
+--     which element of old array to be projected as which element of new one.
+
+-- candidateDigits function returns empty unless we call from beginning
+-- that can be overcome by this function. Scan till you find a match
+findMatch ::  [(Run, Bit)] -> Maybe [[Digit]]
+findMatch = listToMaybe
+          . filter (not . null)
+          . map (solve . candidateDigits)
+          . tails
+          
+{-
+    Using tails function and lazy evaluation to our advantage!
+    
+    *Main> tails [1,2,3,4,5]
+    [[1,2,3,4,5],[2,3,4,5],[3,4,5],[4,5],[5],[]]
+-}  
+
+-- choose a row from the image and try to find the bar code.
+findEAN13 :: Pixmap -> Maybe [Digit]
+findEAN13 pixmap = withRow center pixmap (fmap head . findMatch)
+    where (_, (maxX, _)) = bounds pixmap
+          center = (maxX + 1) `div` 2
+
+-- wrapper to print barcode (can be defined as main())
+printBarcode :: IO ()
+printBarcode = do
+    args <- getArgs
+    forM_ args $ \arg -> do
+        e <- parse parseRawPPM <$> L.readFile arg
+        case e of
+            Left err -> print $ "Error: " ++ err
+            Right pixmap -> print $ findEAN13 pixmap
             
