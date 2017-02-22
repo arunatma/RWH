@@ -1,5 +1,6 @@
 -- Real World Haskell
 -- Chapter 12: Barcode recognition
+-- http://book.realworldhaskell.org/read/barcode-recognition.html
 
 -- Continuation of Chapter 10: Parsing Binary data
 -- Two kinds of barcodes: UPC-A or EAN-13 (US or Europe)
