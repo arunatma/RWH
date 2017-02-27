@@ -125,3 +125,4 @@ always0' = mkFuncRec "always0" (\_ -> 0)
     ("plus7",15)
 -}
 
+-- Extended example using Map. See passwdmap.hs 

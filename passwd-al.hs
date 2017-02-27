@@ -2,6 +2,9 @@
 -- Chapter 13: Data Structures
 -- http://book.realworldhaskell.org/read/data-structures.html
 
+-- use "passwd" example file to test run the code
+-- C:> runghc passwd-al.hs passwd 2
+
 import Data.List
 import System.IO
 import Control.Monad (when)
@@ -45,5 +48,3 @@ split delim str = first : rest
                         [] -> []
                         x  -> split delim (tail x)
                         
--- use "passwd" example file to test run the code
--- C:> runghc passwd-al.hs passwd 2
