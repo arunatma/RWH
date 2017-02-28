@@ -126,3 +126,139 @@ always0' = mkFuncRec "always0" (\_ -> 0)
 -}
 
 -- Extended example using Map. See passwdmap.hs 
+
+-- Numeric Types
+-- Here is the need of the problem: To pretty show expressions
+{-
+
+    EXPRESSIONS PRINTING
+    --------------------
+    ghci> prettyShow $ 5 + 1 * 3
+    "5+(1*3)"
+    
+    ghci> prettyShow $ 5 * 1 + 3
+    "(5*1)+3"
+    
+    ghci> prettyShow $ simplify $ 5 + 1 * 3
+    "5+3"
+    
+    REVERSE POLISH NOTATION
+    -----------------------
+    ghci> rpnShow $ 5 + 1 * 3
+    "5 1 3 * +"
+    
+    ghci> rpnShow $ simplify $ 5 + 1 * 3
+    "5 3 +"
+    
+    ALGEBRAIC EXPRESSIONS
+    --------------------_
+    ghci> prettyShow $ 5 + (Symbol "x") * 3
+    "5+(x*3)"
+    
+    UNITS ARITHMETIC
+    ----------------
+    ghci> (units 5 "m") / (units 2 "s")
+    2.5_m/s
+    ghci> (units 5 "m") + (units 2 "s")
+    *** Exception: Mis-matched units in add
+    ghci> (units 5 "m") + (units 2 "m")
+    7_m
+    ghci> (units 5 "m") / 2
+    2.5_m
+    ghci> 10 * (units 5 "m") / (units 2 "s")
+    25.0_m/s    
+    
+    LAZY EXPRESSION
+    ---------------
+    ghci> let test = 2 * 5 + 3
+    ghci> test
+    13
+    ghci> rpnShow test
+    "2 5 * 3 +"
+    ghci> prettyShow test
+    "(2*5)+3"
+    ghci> test + 5
+    18
+    ghci> prettyShow (test + 5)
+    "((2*5)+3)+5"
+    ghci> rpnShow (test + 5)
+    "2 5 * 3 + 5 +"
+    
+    TRIGONOMETRY
+    ------------
+    ghci> sin (pi / 2)
+    1.0
+    ghci> sin (units (pi / 2) "rad")
+    1.0_1.0
+    ghci> sin (units 90 "deg")
+    1.0_1.0
+    ghci> (units 50 "m") * sin (units 90 "deg")
+    50.0_m
+    
+    OTHER ADVANCED FEATURES
+    -----------------------
+    ghci> ((units 50 "m") * sin (units 90 "deg")) :: Units (SymbolicManip Double)
+    50.0*sin(((2.0*pi)*90.0)/360.0)_m
+    ghci> prettyShow $ dropUnits $ (units 50 "m") * sin (units 90 "deg")
+    "50.0*sin(((2.0*pi)*90.0)/360.0)"
+    ghci> rpnShow $ dropUnits $ (units 50 "m") * sin (units 90 "deg")
+    "50.0 2.0 pi * 90.0 * 360.0 / sin *"
+    ghci> (units (Symbol "x") "m") * sin (units 90 "deg")
+    x*sin(((2.0*pi)*90.0)/360.0)_m
+-}
+
+-- All these are possible with the use of Haskell types and classes.
+-- This is built in num.hs
+
+-- We need to able to store expressions symbolically. The two operands can 
+-- themselves be expressions.  So, it is kind of a tree structure
+-- Before getting on to num.hs, some simple mechanisms here:
+data Op = Plus | Minus | Mul | Div | Power
+        deriving (Eq, Show)
+        
+-- Core symbolic manipulation type.
+data SymbolicManip a =
+          Number a
+        | Arith Op (SymbolicManip a) (SymbolicManip a)
+          deriving (Eq, Show)
+          
+-- This SymbolicManip will be an instance of Num
+instance Num a => Num (SymbolicManip a) where
+    a + b = Arith Plus a b
+    a - b = Arith Minus a b
+    a * b = Arith Mul a b
+    negate a = Arith Mul (Number (-1)) a 
+    abs a = error "abs is not implemented"
+    signum _ = error "signum is not implemented"
+    fromInteger i = Number (fromInteger i)
+    
+-- The instance puts a constraint on what 'a' could be.  It should be an 
+-- instance of Num itself.  So, SymbolicManip Int is a proper type.
+
+-- SymbolicManip can be a simple number; or an expression (as defined in 
+-- SymbolicManip data type)
+
+{-  A few trial runs:
+    *Main> Number 5
+    Number 5
+    *Main> :t Number 5
+    Number 5 :: Num a => SymbolicManip a
+    *Main> :t Number (5::Int)
+    Number (5::Int) :: SymbolicManip Int
+    *Main> :t Number (5::Double)
+    Number (5::Double) :: SymbolicManip Double
+    *Main> Number 5 * Number 10
+    Arith Mul (Number 5) (Number 10)
+    *Main> (5 * 10) :: Int
+    50
+    *Main> (5 * 10) :: Double
+    50.0
+    *Main> (5 * 10) :: SymbolicManip Double
+    Arith Mul (Number 5.0) (Number 10.0)
+    *Main> (5 * 10) :: SymbolicManip Int
+    Arith Mul (Number 5) (Number 10)
+    *Main> (5 * 10 + 2) :: SymbolicManip Int
+    Arith Plus (Arith Mul (Number 5) (Number 10)) (Number 2)
+-}    
+
+-- Now check num.hs for a detailed code
