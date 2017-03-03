@@ -67,5 +67,4 @@ instance Monoid (DList a) where
     mempty = empty
     mappend = append
     
-mappendEx1 = toList (fromList [1,2] `mappend` fromList [3,4])
 

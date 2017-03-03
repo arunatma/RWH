@@ -9,6 +9,9 @@
 -- Prelude
 import qualified Data.Map as Map
 import DList
+import qualified Data.Sequence as Seq
+import Data.Sequence ((><), (<|), (|>))
+import qualified Data.Foldable as Foldable
 
 -- Association Lists
 -- Many instances need the use of key-value pairs
@@ -360,5 +363,24 @@ instance Monoid MInt where
 mulAppend = 2 `mappend` 5 :: MInt           -- M 10
 addAppend = 2 `mappend` 5 :: AInt           -- A 7
 
+-- General purpose sequences
+-- Data.Sequence module to be imported.
 
+seq0 = Seq.empty                        -- fromList []
+seq1 = Seq.singleton 5                  -- fromList [1]
+seqn = Seq.fromList [1,2,3]             -- fromList [1,2,3]
 
+seqComb1 = 1 Seq.<| Seq.singleton 2     -- fromList [1,2]
+
+-- The operators are directly imported (see above)
+seqComb2 = 1 <| Seq.singleton 2
+seqComb3 = Seq.singleton 1 |> 2
+seqComb4 = seqComb1 >< seqComb2         -- fromList [1,2,1,2]
+
+-- creating list from Seq 
+-- Use toList function from Data.Foldable
+-- Done qualified import of Data.Foldable
+list1 = Foldable.toList seqComb4        -- [1,2,1,2]
+
+-- using fold function 
+sum1 = Foldable.foldl' (+) 0 (Seq.fromList [1,2,3])
