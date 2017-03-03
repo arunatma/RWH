@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- Real World Haskell
 -- Chapter 13: Data Structures
 -- http://book.realworldhaskell.org/read/data-structures.html
@@ -7,6 +8,7 @@
 -- always use qualified import for Map as its functions conflict with those in
 -- Prelude
 import qualified Data.Map as Map
+import DList
 
 -- Association Lists
 -- Many instances need the use of key-value pairs
@@ -262,3 +264,101 @@ instance Num a => Num (SymbolicManip a) where
 -}    
 
 -- Now check num.hs for a detailed code
+
+-- Taking advantage of functions as data
+-- Appending lists in C
+{-
+    Just change the head and tail pointers to append or cut the list
+    
+    struct list {
+        struct node *head, *tail;
+    };
+-}
+-- No cost at all in C
+    
+-- Haskell - appending list
+{-
+    (++) :: [a] -> [a] -> [a]
+    (x:xs) ++ ys = x : xs ++ ys
+    _      ++ ys = ys
+-}
+-- Here the cost is directly proportional to the length of the list
+
+-- (++) is infixr 5  (right assocative with priority 5)
+
+x = "ab" ++ "bc" ++ "cd"       -- evaluated as "ab" ++ ("bc" ++ "cd")
+-- but, if we incrementally append..
+-- Total cost will be length of "bc" + length of "cd" = 4
+y = "ab" ++ "bc"
+z = y ++ "cd"
+-- Here total cost is length of "bc" + length of "abbc" = 6 
+-- becoming quadratic here - what should have been linear!
+
+fx = ("ab" ++) . ("bc" ++)
+gx = fx "cd"        -- same result, with linear time.
+-- Taking advantage of the partial application and composition
+-- The partial applications are not evaluated until required
+-- But dealing with such partially applied functions is an awkward task.
+
+-- Solution: Difference List
+-- Look at DList.hs
+
+-- Monoid: A structure in abstract algebra
+-- Many math. objects are monoids
+-- To be a monoid, only the following is to be satisfied
+-- 1. An associative binary operator: a * (b * c) == (a * b) * c
+-- 2. Presence of an identity element(e): a * e = e * a = a
+
+-- No specification about the functionality of the binary operator 
+-- The requirement is just that the binary operator should exist
+
+-- (+) as binary operator and 0 as identity element, the integers form a monoid
+-- (*) multiplication and 1 as identity element, the integers form a 2nd monoid
+
+-- Monoids are everywhere in Haskell
+-- Defined in Data.Monoid module 
+
+{-
+
+    class Monoid a where
+        mempty  :: a                -- the identity
+        mappend :: a -> a -> a      -- associative binary operator
+    
+    instance Monoid [a] where
+        mempty  = []
+        mappend = (++)
+-}
+
+-- we can define Monoid instance for DList - see DList.hs
+-- DList.hs imported before using toList and fromList
+mappendEx1 = toList (fromList [1,2] `mappend` fromList [3,4])
+
+-- Although from a mathematical perspective, integers can be monoids in two 
+-- different ways, we can't write two differing Monoid instances for Int in 
+-- Haskell: the compiler would complain about duplicate instances
+
+-- use of newtype to circumvent the same
+newtype AInt = A { unA :: Int }
+    deriving (Show, Eq, Num)
+-- to derive Num class we need to add the following language pragma
+-- Generalized Newtype Deriving
+-- {-# LANGUAGE GeneralizedNewtypeDeriving #-}    
+
+-- monoid under addition
+instance Monoid AInt where
+    mempty = 0
+    mappend = (+)
+
+newtype MInt = M { unM :: Int }
+    deriving (Show, Eq, Num)
+
+-- monoid under multiplication
+instance Monoid MInt where
+    mempty = 1
+    mappend = (*)
+    
+mulAppend = 2 `mappend` 5 :: MInt           -- M 10
+addAppend = 2 `mappend` 5 :: AInt           -- A 7
+
+
+
