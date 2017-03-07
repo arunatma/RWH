@@ -277,7 +277,7 @@ fmapEx3 = (1+) <$> ([2,3,4] ++ [5,6,7])     -- [3,4,5,6,7,8]
 --------------------
 -- We cannot create a functor for a data type with more than one variable, but
 -- we can do so it we make all others concrete expcept for one
--- Not possible to create Functer for Either 
+-- Not possible to create Functor for Either 
 -- But, it is possible to create functor instance for Either a
 
 {-
@@ -414,3 +414,19 @@ parseBytes n =
     in putState st' ==>&
        assert (L.length h == n') "end of input" ==>&
        identity h
+
+instance Applicative Parse where
+    pure = identity
+    (<*>) mf mv = do
+        f <- mf
+        v <- mv
+        return (f v)
+    
+-- written after reading chapter 14 on Monads    
+instance Monad Parse where
+    return = identity
+    (>>=) = (==>)
+    fail = bail
+
+    
+    

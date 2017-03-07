@@ -65,5 +65,10 @@ chainEx1 = print "foo" >>= \_ -> print "bar"
 chainEx2 = print "foo" >> print "bar"
 -- both of above perform same task
 
+-- Having a record log, using monads as our helper
+-- back to globToRegex function from Chapter 8: Efficient file processing
+
+-- This logger code is in Logger.hs 
+
     
     

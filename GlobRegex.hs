@@ -1,5 +1,7 @@
 -- GlobRegex.hs
 -- part of chapter 8: Efficient file handling and regular expressions
+-- http://book.realworldhaskell.org/read/efficient-file-processing-regular-expressions-and-file-name-matching.html
+
 
 module GlobRegex 
     (
