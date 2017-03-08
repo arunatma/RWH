@@ -4,6 +4,8 @@
 
 -- A relook from previous chapters
 
+import qualified Data.Map as M
+
 -- Chapter 10 - PNM bitstream parsing
 (>>?) :: Maybe a -> (a -> Maybe b) -> Maybe b
 Nothing >>? _ = Nothing
@@ -70,5 +72,107 @@ chainEx2 = print "foo" >> print "bar"
 
 -- This logger code is in Logger.hs 
 
+-- Maybe Monad 
+{-
+    Defined in GHC.Base
     
+    instance Monad Maybe where
+        Just x >>= k    = k x
+        Nothing >>= _   = Nothing
+        
+        Just _ >> k     = k
+        Nothing >> _    = Nothing
+        
+        return x        = Just x
+        
+        fail _          = Nothing
+        
+    Executing the Maybe Monad using "maybe" function 
     
+    maybe :: b -> (a -> b) -> Maybe a -> b
+    maybe n _ Nothing  = n
+    maybe _ f (Just x) = f x
+    
+    Usage:  maybe defaultValue fn MonadicValue
+        Output: defaultValue   when MonadicValue is Nothing
+                fn (value)     when MonadicValue has some actual value
+-}
+
+type PersonName = String
+type PhoneNumber = String
+type BillingAddress = String
+
+data MobileCarrier = AirVoice | Pio | Ideal | Medafone deriving (Eq, Ord)
+
+findCarrierBillingAddress :: PersonName 
+                          -> M.Map PersonName PhoneNumber
+                          -> M.Map PhoneNumber MobileCarrier
+                          -> M.Map MobileCarrier BillingAddress
+                          -> Maybe BillingAddress
+                          
+findCarrierBillingAddress person phoneMap carrierMap addressMap =
+    case M.lookup person phoneMap of
+      Nothing -> Nothing
+      Just number ->
+          case M.lookup number carrierMap of
+            Nothing -> Nothing
+            Just carrier -> M.lookup carrier addressMap
+
+-- variation2 using Maybe Monad 
+findCarrierBillingAddress1 person phoneMap carrierMap addressMap = do
+    number <- M.lookup person phoneMap
+    carrier <- M.lookup number carrierMap
+    address <- M.lookup carrier addressMap      -- why take out from monadic 
+    return address                              -- context, to put back again!
+    
+-- without using the last <- and return     
+findCarrierBillingAddress1' person phoneMap carrierMap addressMap = do
+    number <- M.lookup person phoneMap
+    carrier <- M.lookup number carrierMap
+    M.lookup carrier addressMap    
+    
+-- using (>>=)
+findCarrierBillingAddress2 person phoneMap carrierMap addressMap = 
+    lookup phoneMap person >>=
+    lookup carrierMap >>=
+    lookup addressMap   
+    where lookup = flip M.lookup
+
+-- List Monad
+-- Maybe is for just a single value or no value 
+-- List is to give out a number of values as output. Non-deterministic!
+
+-- type constructor here: []
+-- return should put the value in the type constructor a -> [a] (or a -> [] a)
+
+returnSingleton :: a -> [a]
+returnSingleton x = [x]
+
+-- type of (>>=)
+-- (>>=) :: m a -> (a -> m b) -> m b 
+-- (>>=) :: [a] -> (a -> [b]) -> [b]
+
+-- Deriving (>>=) from the known list function
+{-
+    map :: (a -> b) -> [a] -> [b]
+    flip map :: [a] -> (a -> b) -> [b]
+    
+    what if the type of b is actually [c]
+    
+    flip map :: [a] -> (a -> [c]) -> [[c]]
+    \xs f -> concat (map f xs) :: [a] -> (a -> [b]) -> [b]
+    
+    (>>=) xs f == concat $ flip map xs f
+-}
+
+-- Monad Instance for List 
+{-
+    instance Monad [] where
+        return x = [x]
+        xs >>= f = concat (map f xs)
+        
+        xs >> f  = concat (map (\_ -> f) xs)
+        fail _   = []
+        
+-}
+
