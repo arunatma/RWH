@@ -176,3 +176,78 @@ returnSingleton x = [x]
         
 -}
 
+-- Understanding List Monad
+-- List Comprehension
+comprehensive xs ys = [(x,y) | x <- xs, y <- ys]
+
+-- same in terms of monadic representation 
+monadic xs ys = do { x <- xs; y <- ys; return (x,y)}
+
+-- both are same 
+boolCheck = comprehensive [1,2] "bar" == monadic [1,2] "bar"    -- True
+
+-- same as monadic written as a do block, instead of a single statement
+blockyMonadic xs ys = do 
+    x <- xs
+    y <- ys
+    return (x, y)
+    
+{-     
+    *Main> blockyMonadic [1,2] [3,4]
+    [(1,3),(1,4),(2,3),(2,4)]
+-}    
+    
+    
+-- So, in the functions above, x <- xs, takes each value of x, and y <- ys 
+-- takes each value of y combines as (x,y) and returns
+-- This works as a double nested loop!
+
+-- So, monadic code is NOT SEQUENTIAL.  You will never be able to predict
+-- what happens when, when the values are assigned!
+
+-- This is what actually happens!
+blockyPlain xs ys =
+    xs >>=
+    \x -> ys >>=        -- For each value of x, y gets multiple values 
+    \y -> return (x, y)
+
+-- with no bind operator    
+noMonadAtAll xs ys =
+    concat (map 
+           (\x -> concat (map 
+                          (\y -> [(x, y)]) 
+                          ys)) 
+            xs)
+
+-- Brute force constraint solver
+-- Given an integer value, find all possible pairs of integers, when multiplied
+-- gives the value 
+guarded :: Bool -> [a] -> [a]
+guarded True xs = xs
+guarded False _ = []
+
+multiplyTo :: Int -> [(Int, Int)]
+multiplyTo n = do
+    x <- [1..n]
+    y <- [1..n]
+    guarded (x * y == n) $ 
+        return (x, y)
+    
+-- use of both list and maybe     
+getSecondElem :: [a] -> Maybe a
+getSecondElem xs = do 
+    (_:x:_) <- Just xs      -- executing this on [1] causes a pattern match 
+    return x                -- fail, which in Maybe monad gives "Nothing"
+    
+-- Desugaring of "do" blocks    
+-- Refer to the five translations in this section. (Go to book)   
+-- READ THIS.  Remember this for a Monad!
+-- When we write (>>=) explicitly in our code, it reminds us that we're 
+-- stitching functions together using combinators, not simply sequencing actions
+
+-- (=<<) is flipped version of (>>=)
+-- (>>=) :: Monad m => m a -> (a -> m b) -> m b
+-- (=<<) :: Monad m => (a -> m b) -> m a -> m b
+
+wordCount = print . length . words =<< getContents
+
