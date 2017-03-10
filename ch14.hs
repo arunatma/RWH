@@ -251,3 +251,130 @@ getSecondElem xs = do
 
 wordCount = print . length . words =<< getContents
 
+-- State Monad 
+-- Already an introuduction happened in chapter 10.
+-- "Parse" data type while parsing binary data was a monad.
+-- Either "error message" state - Left error and Right parse state 
+{-
+    data ParseState = ParseState {
+          string :: L.ByteString
+        , offset :: Int64
+        } deriving (Show)
+
+    newtype Parse a = Parse {
+        runParse :: ParseState -> Either String (a, ParseState)
+    }
+-}
+-- The reading and writing state and performing state operations is provided by 
+-- "State" monad from Control.Monad.State
+
+-- Parse carried "ByteString" as state, but State monad can carry any type 'a'
+-- as the state 
+
+-- What to do with a State?
+-- Given a state
+--  1. inspect into it
+--  2. produce a result 
+--  3. produce a new state value 
+-- Type:
+-- s -> (a, s)              (old state) -> (result, new state)
+
+-- Developing a simple state monad 
+type SimpleState s a = s -> (a, s)
+-- SimpleState s a is a function, that takes a state and gives a result and 
+-- new state.
+-- because it transforms one state to another, it is also called "state 
+-- transformer" moad
+
+-- Right, any monad should have a single type parameter, but here there are 
+-- two, 's' and 'a'. So, technically SimpleState cannot form a monad.
+
+type StringState a = SimpleState String a
+-- (so, the monad's type constructor is SimpleState s and not SimpleState)
+
+returnSt :: a -> SimpleState s a
+returnSt a = \s -> (a, s)
+-- Given a value, returnSt gives out a fn, that takes a state and gives (a, s)
+
+-- Effectively, given a value and a state, put in tuple and give back!!
+returnAlt :: a -> SimpleState s a
+returnAlt a s = (a, s)
+-- just comment out the type declaration above, we would get type of returnAlt 
+-- as returnAlt :: t1 -> t -> (t1, t)
+
+-- definition for bind (>>=)
+bindSt :: (SimpleState s a) -> (a -> SimpleState s b) -> (SimpleState s b)
+bindSt m k = \s -> let (a, s') = m s 
+                   in (k a) s'
+
+-- m is (SimpleState s a)
+-- m is (s -> (a, s))
+-- m s will actually give (a, s)        (with some transformation to state)
+
+-- k is a fn of type (a -> SimpleState s b)
+-- k a will yield (SimpleState s b)
+-- k a, thus actually is (s -> (b, s))
+-- (k a) s' will then be (b, s')        (with some transformation to state)
+
+-- bindSt m k = \s -> (b, s')  (a function that takes in a state and produces
+-- a tuple) which is exactly the type of (SimpleState s b)
+
+-- To explain further:
+-- m: step
+-- k: makeStep 
+-- s: oldState
+
+bindAlt :: (s -> (a, s))        -- step
+        -> (a -> s -> (b, s))   -- makeStep
+        -> (s -> (b, s))        -- (makeStep result) newState
+bindAlt step makeStep oldState = let (result, newState) = step oldState
+                                 in (makeStep result) newState
+
+-- In the above definition, how we have done is                                  
+{-
+bindAlt :: (s -> (a, s))        -- step         m 
+        -> (a -> s -> (b, s))   -- makeStep     k
+        -> s                    -- oldState     s 
+        (b, s)                  
+commenting out the type declaration for bindAlt gives the above type!
+bindAlt :: (s -> (a, s)) -> (a -> s -> t) -> s -> t
+            t here is (b, s)
+-}                                 
+
+-- Reading and Modifying the state 
+-- using getSt and putSt functions
+getSt :: SimpleState s s
+getSt = \s -> (s, s)
+-- getState oldState gives (oldState, oldState)
+
+putSt :: s -> SimpleState s ()
+putSt s = \_ -> ((), s)
+-- putSt newState oldState gives ((), newState)
+
+-- Instead of using the type synonmy we are going to define a newtype
+newtype State s a = State {
+      runState :: s -> (a, s)
+    }
+-- instead of plainly leaving (s -> (a, s) we have wrapped it with the "State" 
+-- value constructor
+-- runState :: State s a -> s -> (a, s)
+-- runState accessor function unwraps the State value (s -> (a, s)) from the 
+-- type constructor State s a
+-- runState (State s a) oldState = (result, newState)
+
+-- now definitions of return and bind
+returnState :: a -> State s a
+returnState a = State $ \s -> (a, s)    
+-- same as returnSt, just put inside 'State' type constructor
+
+bindState :: State s a -> (a -> State s b) -> State s b
+bindState m k = State $ \s -> let (a, s') = runState m s
+                              in runState (k a) s' 
+
+-- get and put
+get :: State s s
+get = State $ \s -> (s, s)
+
+put :: s -> State s ()
+put s = State $ \_ -> ((), s)
+    
