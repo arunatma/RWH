@@ -5,6 +5,8 @@
 -- A relook from previous chapters
 
 import qualified Data.Map as M
+import System.Random
+import Control.Monad (liftM2)
 
 -- Chapter 10 - PNM bitstream parsing
 (>>?) :: Maybe a -> (a -> Maybe b) -> Maybe b
@@ -377,4 +379,79 @@ get = State $ \s -> (s, s)
 
 put :: s -> State s ()
 put s = State $ \_ -> ((), s)
+    
+-- Using the state monad. Pseudo random number generator.
+
+-- State Monad does what an imperative language does.
+-- Carry some state around; Read values; Modify values through assignments.
+-- C: rand fn to generates a pseudo random number, updating some global state
+
+-- replicating the same in Haskell (using fns from System.Random)
+rand :: IO Int
+rand = getStdRandom (randomR (0, maxBound))
+-- randomR :: (RandomGen g, Random a) => (a, a) -> g -> (a, g)
+-- getStdRandom :: (StdGen -> (a, StdGen)) -> IO a
+
+-- RandomGen is a typeclass defined in System.Random module (generates rand num)
+-- Random is a typeclass that specifies the how of generating random number for 
+-- a particular data type
+
+-- So, rand generates a random number with type IO Int (not a pure code)
+
+-- Generating pure random number
+twoBadRandoms :: RandomGen g => g -> (Int, Int)
+twoBadRandoms gen = (fst $ random gen, fst $ random gen)
+-- generates the same random number every time 
+-- difference between randomR and random (the first one takes in a user defined 
+-- range, the 2nd one operates with implicit range)
+
+{-
+    ghci> twoBadRandoms `fmap` getStdGen
+    (8637218322616832400,8637218322616832400)
+    
+    The getStdGen function retrieves the current value of the global standard 
+    number generator from the IO monad.
+    
+    ghci> getStdRandom random
+    3611489380773357270
+-}
+
+twoGoodRandoms :: RandomGen g => g -> ((Int, Int), g)
+twoGoodRandoms gen = let (a, gen') = random gen
+                         (b, gen'') = random gen'
+                     in ((a, b), gen'')
+              
+{-
+    *Main> fmap twoGoodRandoms getStdGen
+    ((8405703720781280521,-6158678421703163258),1751878274 1780294415)
+-}              
+-- This gives two different random numbers and gives out the second gen state.
+
+-- Looking at the code, this seems a case for the State monad
+
+type RandomState a = State StdGen a
+
+-- Generating Random Value:
+-- Fetch the current generator, use and replace with the new generator 
+getRandom :: (Random a) => RandomState a
+getRandom = 
+    get >>= \gen ->
+    let (val, gen') = random gen in
+    put gen' >>
+    return val
+    
+getTwoRandoms :: Random a => RandomState (a, a)
+getTwoRandoms = liftM2 (,) getRandom getRandom    
+
+runTwoRandoms :: IO (Int, Int)
+runTwoRandoms = do
+    oldState <- getStdGen
+    let (result, newState) = runState getTwoRandoms oldState
+    setStdGen newState
+    return result
+    
+    
+    
+
+
     
