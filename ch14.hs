@@ -433,6 +433,7 @@ type RandomState a = State StdGen a
 
 -- Generating Random Value:
 -- Fetch the current generator, use and replace with the new generator 
+{-
 getRandom :: (Random a) => RandomState a
 getRandom = 
     get >>= \gen ->
@@ -449,9 +450,62 @@ runTwoRandoms = do
     let (result, newState) = runState getTwoRandoms oldState
     setStdGen newState
     return result
-    
-    
-    
+-}
+-- Above code is commented and a part of this section is left out, as it is 
+-- causing the following error
 
+{-
 
+ch14.hs:439:5: error:
+    * Could not deduce (Monad (State StdGen))
+        arising from a use of `>>='
+      from the context: Random a
+        bound by the type signature for:
+                   getRandom :: Random a => RandomState a
+        at ch14.hs:437:1-40
+    * In the expression:
+        get >>= \ gen -> let (val, gen') = ... in put gen' >> return val
+      In an equation for `getRandom':
+          getRandom = get >>= \ gen -> let ... in put gen' >> return val
+-}
+
+-- Monads and Functors
+-- Functors and Monads: Names borrowed from Mathematics' category theory.
+
+-- Category Theory: Moand is built from functor 
+-- Haskell: There is no mandate that a monad should be a sub class of functor
+-- But, generally advisable to define a functor instance when there is a need 
+-- to define a monad instance
+
+{-
+    Prelude> :t fmap
+    fmap :: Functor f => (a -> b) -> f a -> f b
     
+    Prelude> :m +Control.Monad
+    
+    Prelude Control.Monad> :t liftM
+    liftM :: Monad m => (a1 -> r) -> m a1 -> m r
+-}          
+-- liftM and fmap are just equivalent functions
+
+-- List Monad 
+{-
+instance Monad [] where
+    return x = [x]
+    xs >>= f = concat (map f xs)
+-}    
+
+-- concat removes one level of nesting :: from [[]] to []
+-- same is performed by 'join' function join :: m (m a) -> m a
+-- So, an alternative definition of (>>=), using 'join' and 'fmap'
+class Functor m => AltMonad m where
+    join :: m (m a) -> m a
+    return' :: a -> m a
+    
+(>>>=) :: AltMonad m => m a -> (a -> m b) -> m b
+xs >>>= f = join (fmap f xs)
+
+-- Now, definition of join using (>>=)
+join' :: Monad m => m (m a) -> m a
+join' x = x >>= id
+
