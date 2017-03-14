@@ -509,3 +509,70 @@ xs >>>= f = join (fmap f xs)
 join' :: Monad m => m (m a) -> m a
 join' x = x >>= id
 
+-- Functor Laws
+{-
+    fmap id == id
+    fmap (f . g) == fmap f . fmap g 
+-}
+
+-- Monad Laws
+{-
+    1.  'return' is a left identity for (>>=)
+        
+        return x >>= f            ===   f x
+        
+        No need to wrap 'x' in return if it is going to be unwrapped by (>>=)
+        Simply, can be written as f x 
+        
+        Same in 'do' notation:
+        
+        value = do 
+            y <- return x
+            f y
+        
+        is equivalent to 
+        
+        value = f x
+    
+    2.  'return' is a right identity for (>>=)
+    
+        m >>= return             === m
+
+        value = do 
+            y <- m
+            return y
+            
+        is equivalent to 
+        
+        value = m
+        
+    3.  Associativity
+    
+        m >>= (\x -> f x >>= g)   ===   (m >>= f) >>= g
+        
+        Rephrasing LHS:
+        m >>= (\x -> f x >>= g)
+        
+        m >>= s 
+            where s x = f x >>= g
+            
+        Rephrasing RHS:
+        (m >>= f) >>= g
+        
+        t >>= g
+            where t = m >>= f
+            
+        So, this says:
+            m >>= s     ===     t >>= g
+        
+        This law states that a complicated action can be refactored into simple
+        actions. 
+-}
+
+-- Note:
+-- As like functor laws
+-- It is the responsibility of the person writing a monad to comply with the 
+-- three laws which helps in conforming and ease of use of the user-defined
+-- monad 
+
+-- Compiler does not guarantee that a monad follows the monad laws.
