@@ -2,7 +2,7 @@
 -- Chapter 15: Programming with Monads
 -- http://book.realworldhaskell.org/read/programming-with-monads.html
 
-import Control.Monad (liftM3)
+import Control.Monad (liftM3, ap, liftM)
 
 -- Revisits:
 -- Association List
@@ -98,4 +98,107 @@ Very interesting equivalent functions!
     ap == liftM ($)
 
 -}
+
+-- Representation of phone numbers
+data Context = Home | Mobile | Business deriving (Show, Eq)
+
+type Phone = String
+
+albulena = [(Home, "+355-652-55512")]
+
+nils = [(Mobile, "+47-922-55-512"), (Business, "+47-922-12-121"),
+        (Home, "+47-925-55-121"), (Business, "+47-922-25-551")]
+
+twalumba = [(Business, "+260-02-55-5121")]
+
+-- Order of Priority to call 1. Business, 2. Home, 3. Mobile
+-- to get personal number, check home, if not then mobile
+onePersonalPhone :: [(Context, Phone)] -> Maybe Phone
+onePersonalPhone ps = case lookup Home ps of
+                        Nothing -> lookup Mobile ps
+                        Just n -> Just n
+                        
+-- Maybe does not accommodate a single person having multiple phone numbers 
+-- in the same context (multiple "Business" phones)
+allBusinessPhones :: [(Context, Phone)] -> [Phone]
+allBusinessPhones ps = map snd numbers
+    where numbers = case filter (contextIs Business) ps of
+                      [] -> filter (contextIs Mobile) ps
+                      ns -> ns
+
+contextIs a (b, _) = a == b
+
+-- both the above functions look very similar
+-- the first case expression handles the empty case 
+-- the second case expression handles when there is a valid output
+
+-- MonadPlus typeclass (using this we can abstract the above case expressions)
+-- from Control.Monad
+-- defined as:
+
+class Monad m => MonadPlus m where
+   mzero :: m a    
+   mplus :: m a -> m a -> m a
+
+-- Making instances for our usual data types 
+instance MonadPlus [] where 
+    mzero = []
+    mplus = (++)
+    
+instance MonadPlus Maybe where
+    mzero = Nothing
+    
+    -- Take only the first argument of mplus. If it is Nothing, then take second
+    Nothing `mplus` ys  = ys
+    xs      `mplus` _ = xs
+    
+-- rewritten functions
+onePersonalPhone' :: [(Context, Phone)] -> Maybe Phone
+onePersonalPhone' ps = lookup Home ps `mplus` lookup Mobile ps
+
+allBusinessPhones' :: [(Context, Phone)] -> [Phone]
+allBusinessPhones' ps = map snd numbers
+    where numbers = filter (contextIs Business) ps `mplus` 
+                    filter (contextIs Mobile) ps
+    
+oneBusinessPhone :: [(Context, Phone)] -> Maybe Phone
+oneBusinessPhone ps = lookup Business ps `mplus` lookup Mobile ps
+
+allPersonalPhones :: [(Context, Phone)] -> [Phone]
+allPersonalPhones ps = map snd $ filter (contextIs Home) ps `mplus`
+                                 filter (contextIs Mobile) ps
+
+-- lookup function as defined in Data.List
+-- lookup :: Eq a => a -> [(a, b)] -> Maybe b
+-- Rewriting the same here
+lookup' :: Eq a => a -> [(a, b)] -> Maybe b
+lookup' _ []    = Nothing
+lookup' k ((x,y):xys) 
+    | x == k    = Just y
+    | otherwise = lookup' k xys
+                      
+-- A generic lookup can be written using MonadPlus
+-- This can return a Maybe or this can return a list 
+lookupM :: (MonadPlus m, Eq a) => a -> [(a, b)] -> m b
+lookupM _ []    = mzero
+lookupM k ((x,y):xys) 
+    | x == k    = return y `mplus` lookupM k xys
+    | otherwise = lookupM k xys
+    
+-- Now, see the magic using lookupM
+{-
+    *Main> lookupM Business nils :: Maybe Phone
+    Just "+47-922-12-121"
+    *Main> lookupM Business nils :: [Phone]
+    ["+47-922-12-121","+47-922-25-551"]
+-}    
+
+-- mplus does not mean addition
+mplusEx1 = [1,2,3] `mplus` [4,5,6]          -- [1,2,3,4,5,6]
+mplusEx2 = Just 1 `mplus` Just 2            -- Just 1
+
+-- Rules for working with MonadPlus
+-- mzero short circuits the chain of actions
+-- 1. mzero >>= f == mzero
+-- 2. v >> mzero  == mzero
 
