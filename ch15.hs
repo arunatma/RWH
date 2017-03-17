@@ -202,3 +202,21 @@ mplusEx2 = Just 1 `mplus` Just 2            -- Just 1
 -- 1. mzero >>= f == mzero
 -- 2. v >> mzero  == mzero
 
+-- Failing safely with MonadPlus
+-- use mzero in case of a fail or error with Monad
+
+-- guard fn in Control.Monad (not imported, so possible to define below)
+guard :: (MonadPlus m) => Bool -> m ()
+guard True = return ()
+guard False = mzero
+
+-- a sample function using guard
+x `zeroMod` n = guard ((x `mod` n) == 0) >> return x
+
+{-
+    *Main> zeroMod 5 2 :: [Int]
+    []
+    *Main> zeroMod 4 2 :: [Int]
+    [4]
+-}
+
