@@ -220,3 +220,12 @@ x `zeroMod` n = guard ((x `mod` n) == 0) >> return x
     [4]
 -}
 
+-- Back to State monad and generating random values 
+-- the implementation was "leaky" - users can inspect and modify the state!!
+-- We want to hide the implementation.
+-- Such kind of meddling with the implementation can be a source of hard-to-find
+-- bugs - no one would doubt the implementation!
+-- So, better hide the implementation. Expose the APIs / fns which are necssy.
+
+-- implement a monad that supplies unique value of any kind
+-- see Supply.hs 
