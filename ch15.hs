@@ -229,3 +229,6 @@ x `zeroMod` n = guard ((x `mod` n) == 0) >> return x
 
 -- implement a monad that supplies unique value of any kind
 -- see Supply.hs 
+
+-- Using Supply monad as a source of random numbers 
+-- see RandomSupply.hs

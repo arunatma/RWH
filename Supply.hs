@@ -63,3 +63,4 @@ next = S $  do st <- get
     ghci> runSupply (liftM3 (,,) next next next) [1,2]
     ((Just 1,Just 2,Nothing),[])
 -}
+
