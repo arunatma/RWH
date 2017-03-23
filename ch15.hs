@@ -3,6 +3,7 @@
 -- http://book.realworldhaskell.org/read/programming-with-monads.html
 
 import Control.Monad (liftM3, ap, liftM)
+import Control.Arrow (first, second)
 
 -- Revisits:
 -- Association List
@@ -232,3 +233,12 @@ x `zeroMod` n = guard ((x `mod` n) == 0) >> return x
 
 -- Using Supply monad as a source of random numbers 
 -- see RandomSupply.hs
+
+-- There is a tuple.  (a, b) I need to apply a fn to only one of them
+-- So the result should be (f a, b) or (a, f b)
+-- first and second fns from Control.Arrow helps!
+
+theTuple = (5, 3)
+modTuple1 = first (+10) theTuple        -- (15, 3)
+modTuple2 = second (even) theTuple      -- (5, False)
+
