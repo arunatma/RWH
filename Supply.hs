@@ -64,3 +64,13 @@ next = S $  do st <- get
     ((Just 1,Just 2,Nothing),[])
 -}
 
+showTwo :: (Show s) => Supply s String
+showTwo = do
+    a <- next
+    b <- next
+    return (show "a: " ++ show a ++ ", b: " ++ show b)
+    
+{-
+    ghci> runSupply showTwo [1,2]
+    ("\"a: \"Just 1, b: Just 2",[])
+-}

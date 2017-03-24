@@ -49,3 +49,5 @@ rand1 = (fst . runSupply next) `fmap` randomsIO
 -- using 'first' function above
 rand2 :: Random a => IO (Maybe a)
 rand2 = (fst . runSupply next) `fmap` randomsIO_golfed
+    
+    

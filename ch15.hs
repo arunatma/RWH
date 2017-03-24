@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 -- Real World Haskell
 -- Chapter 15: Programming with Monads
 -- http://book.realworldhaskell.org/read/programming-with-monads.html
@@ -242,3 +244,28 @@ theTuple = (5, 3)
 modTuple1 = first (+10) theTuple        -- (15, 3)
 modTuple2 = second (even) theTuple      -- (5, False)
 
+-- see RandomSupply.hs
+-- we are using System.Random functions to generate random numbers
+-- These functions are slow.
+-- What if we want to use randomsIO, but not internally use the System.Random
+-- functions?
+
+-- Separating interface from implementation
+class (Monad m) => MonadSupply s m | m -> s where
+    next :: m (Maybe s)
+-- (Use MultiParamTypeClasses to allow multi-parameter classes)
+--      because of MonadSupply s m
+--      (MonadSupply s) m
+--      We are making 'm' an instance of (MonadSupply s)
+--      A normal typeclass does not have a parameter, here MonadSupply has 's'
+
+-- (Use FunctionalDependencies to allow fundeps)
+--      because of  | m -> s (a functional dependency)
+--      |  : such that
+--      -> : uniquely determines
+--      When 'm' is used in context of (MonadSupply s), then 's' is the only 
+--      acceptable type to use with it 
+
+-- Further explanation: see SupplyClass.hs
+-- check for the function showTwo in Supply.hs
+-- check for the equivalent fn showTwo_class in SupplyClass.hs
