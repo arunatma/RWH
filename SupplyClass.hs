@@ -41,4 +41,3 @@ showTwo_class = do
     ("\"a: \"Just 1, b: Just 2",[])
 -}
 -- see the use of S.runSupply and not runSupply above!
-  

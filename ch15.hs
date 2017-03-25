@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
 -- Real World Haskell
@@ -269,3 +270,42 @@ class (Monad m) => MonadSupply s m | m -> s where
 -- Further explanation: see SupplyClass.hs
 -- check for the function showTwo in Supply.hs
 -- check for the equivalent fn showTwo_class in SupplyClass.hs
+
+-- The Reader Monad
+-- Need: A function accepting an environment (e) and returning a value (a)
+newtype Reader e a = R {runReader :: e -> a} deriving (Functor, Applicative)
+-- needs to have GeneralizedNewtypeDeriving language pragma.
+
+-- if not for GeneralizedNewtypeDeriving, we can write Functor and Applicative
+-- instance as below
+{-
+    instance Functor (Reader e) where
+        fmap f mv = do
+            v <- mv
+            return (f v)
+            
+    instance Applicative (Reader e) where
+        pure = return
+        (<*>) mf mv = do
+            f <- mf
+            v <- mv
+            return (f v)
+-}
+
+-- Making this a monad instance
+instance Monad (Reader e) where
+    return a = R $ \_ -> a
+    m >>= k = R $ \r -> runReader (k (runReader m r)) r
+    
+-- How to know the piece of code executing in this monad, what's the env?
+ask :: Reader e e
+ask = R id      -- equivalent of ask x = R id x 
+                -- runReader on this will give x
+                -- runReader :: Reader e a -> e -> a
+                
+readerEx1 = runReader (ask >>= \x -> return (x * 3)) 2
+
+-- reader monad is included in mtl library (Control.Monad.Reader)
+
+-- See SupplyInstance.hs
+
