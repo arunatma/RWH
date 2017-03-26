@@ -309,3 +309,5 @@ readerEx1 = runReader (ask >>= \x -> return (x * 3)) 2
 
 -- See SupplyInstance.hs
 
+-- Hiding the IO Monad
+-- See HandleIO.hs
