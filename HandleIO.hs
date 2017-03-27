@@ -27,6 +27,8 @@ import System.IO (Handle, IOMode (..))
     -- only the above fns can directly be used. All other needs to be used 
     -- with System.IO as those are qualified imports as below 
 import qualified System.IO
+import Control.Monad.Trans (MonadIO(..))
+import System.Directory (removeFile)
 
 -- restricted version of IO
 -- wrap it with newtype
@@ -75,6 +77,27 @@ safeWrite path content = do
     
 -- Try another operation which is not defined, does not work 
 -- runHandleIO (safeHello "goodbye" >> removeFile "goodbye")
--- removeFile is not defined, we can give fns from the same monad only 
+-- removeFile is part of HandleIO
 -- That way, we will always be operating within HandleIO monad 
 
+-- Designing for Unexpected Use cases 
+-- How to take care of the instances when we actually need to access some 
+-- functions of the IO?
+
+-- Way to provide an escape path 
+-- Using Control.Monad.Trans
+
+-- Making HandleIO an instance of MonadIO typeclass (from Control.Monad.Trans)
+
+instance MonadIO HandleIO where
+    liftIO = HandleIO
+    
+-- with liftIO, we can invoke direct IO actions wherever needed
+tidyHello :: FilePath -> HandleIO ()
+tidyHello path = do
+    safeHello path
+    liftIO (removeFile path)  
+    
+-- same as above: this works! because we used liftIO
+-- runHandleIO (safeHello "goodbye" >> liftIO (removeFile "goodbye"))
+        

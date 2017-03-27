@@ -311,3 +311,12 @@ readerEx1 = runReader (ask >>= \x -> return (x * 3)) 2
 
 -- Hiding the IO Monad
 -- See HandleIO.hs
+
+-- Using the type classes 
+-- See MonadHandle.hs, MonadHandleIO.hs and safeHello.hs
+
+-- Using the type class, we can swap one monad for another. The code retouch 
+-- will be minimal as the code does not care about what monad the code is 
+-- executing in
+
+
