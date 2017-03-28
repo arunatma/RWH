@@ -320,3 +320,7 @@ readerEx1 = runReader (ask >>= \x -> return (x * 3)) 2
 -- executing in
 
 
+-- Isolation and Testing
+-- Writer Monad 
+-- See WriterIO.hs 
+

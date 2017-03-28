@@ -3,6 +3,8 @@
 -- http://book.realworldhaskell.org/read/programming-with-monads.html
 -- safeHello.hs
 
+module SafeHello where 
+
 import MonadHandle
 import System.IO (IOMode (..))
 

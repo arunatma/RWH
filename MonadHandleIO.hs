@@ -5,6 +5,8 @@
 -- http://book.realworldhaskell.org/read/programming-with-monads.html
 -- MonadHandleIO.hs
 
+module MonadHandleIO where 
+
 import MonadHandle
 import qualified System.IO 
 
@@ -12,6 +14,8 @@ import System.IO (IOMode (..))
 import Control.Monad.Trans (MonadIO(..), MonadTrans(..))
 
 import System.Directory (removeFile)
+
+import SafeHello
 
 instance MonadHandle System.IO.Handle IO where
     openFile = System.IO.openFile
