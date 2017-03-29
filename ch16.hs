@@ -21,7 +21,7 @@ csvFile =
 line :: GenParser Char st [String]
 line =
     do result <- cells
-       eof
+       eol
        return result
        
 -- parsing the cells.  Parse first followed by the remaining
@@ -49,4 +49,37 @@ eol = char '\n'
 parseCSV :: String -> Either ParseError [[String]]
 parseCSV input = parse csvFile "(unknown)" input
 
-    
+{-
+    ghci> parseCSV ""
+    Right []
+    ghci> parseCSV "hi,hello\n"
+    Right [["hi","hello"]]
+    ghci> parseCSV "hi,"
+    Left "(unknown)" (line 1, column 4):
+    unexpected end of input
+    expecting "," or "\n"
+-}
+
+
+{-  Handling empty cells and empty lines as well 
+    ghci> parseCSV "Hi,\n\n,Hello\n"
+    Right [["Hi",""],[""],["","Hello"]]
+-}
+
+
+-- Using sepBy and endBy combinators
+-- endBy and sepBy: both take two functions (parsing content and parsing separator)
+-- first: the content parsing 
+-- second: the separator
+-- endBy differs in the sense that it wants the separator to be the last entity
+
+csvFile' = endBy line' eol'
+line' = sepBy cell' (char ',')
+cell' = many (noneOf ",\n")
+eol' = char '\n'
+
+parseCSV' :: String -> Either ParseError [[String]]
+parseCSV' input = parse csvFile' "(unknown)" input
+
+
+
