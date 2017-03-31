@@ -136,8 +136,55 @@ eol2 = string "\n\r" <|> string "\n"
 -- Ideally we wanted to have a look ahead, but string "\n\r" tried consuming 
 -- '\n' only to encounter the EOF to throw an error
 
-eol3 :: GenParser Char st String
-eol3 = do char '\n'         
-          char '\r' <|> return '\n'
-          
-        
+eol3 :: GenParser Char st Char
+eol3 = 
+     do char '\n'         
+        char '\r' <|> return '\n'
+{-
+    ghci> parse (eol3 >> eof) "" "\n\r"
+    Right ()
+    ghci> parse (eol3 >> eof) "" "\n"
+    Right ()
+    ghci> parse (eol3 >> eof) "" "\r\n"
+    Left (line 1, column 1):
+    unexpected "\r"
+    expecting "\n"
+-}
+-- Now "\n" and "\n\r" works; But still "\r\n" does not!!
+
+-- Now comes the lookahead support!  Look ahead without consumint the characters
+-- "try" function 
+-- Takes a function and a parser as arguments.
+-- Applies the parser; If it fails, then behaves as if it has not consumed!
+-- if "try" applied on left side of (<|>), then, even if it fails after 
+-- consuming some input, Parsec tries the right side option of (<|>), assuming 
+-- no input is consumed.
+
+csvFile4 = endBy line4 eol4
+line4 = sepBy cell4 (char ',')
+cell4 = many (noneOf ",\n\r")
+
+eol4 =   try (string "\n\r")
+     <|> try (string "\r\n")       -- If succeeds, then the characters consumed!
+     <|> string "\n"
+     <|> string "\r"
+     
+parseCSV4 :: String -> Either ParseError [[String]]
+parseCSV4 input = parse csvFile4 "(unknown)" input
+
+-- Now all combinations work!
+{-
+    ghci> parse (eol4 >> eof) "" "\n\r"
+    Right ()
+    ghci> parse (eol4 >> eof) "" "\r\n"
+    Right ()
+    ghci> parse (eol4 >> eof) "" "\n"
+    Right ()
+    ghci> parse (eol4 >> eof) "" "\r"
+    Right ()
+-}
+
+{- Combining all, in parseCSV4 function 
+    ghci> parseCSV4 "line1\r\nline2\nline3\n\rline4\rline5\n"
+    Right [["line1"],["line2"],["line3"],["line4"],["line5"]]
+-}
