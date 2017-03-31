@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 -- Real World Haskell
 -- Chapter 16: Using Parsec
 -- http://book.realworldhaskell.org/read/using-parsec.html
@@ -81,5 +82,62 @@ eol' = char '\n'
 parseCSV' :: String -> Either ParseError [[String]]
 parseCSV' input = parse csvFile' "(unknown)" input
 
+-- Choices and Errors
+-- The way the new line is handled:
+-- In Unix / Linux: "\n" alone
+-- In Windows: "\r\n"
+-- Macs (olden days): "\r"
+-- May be we can add support for "\n\r" as well
 
+-- We need to do:
+-- Adjust "eol" function to recognize these characters 
+-- Make "cell" function to ignore '\r' as well 
 
+eol1 :: GenParser Char st String
+eol1 = string "\n" <|> string "\n\r" 
+-- (<|>) function tries matching the left, followed by the right
+-- Here on left itself, the match succeeds, So, if there is a "\n\r", then 
+-- '\r' is left dangling
+
+{-
+    ghci> parse eol1 "" "\n"
+    Right "\n"
+    ghci> parse eol1 "" "\n\r"             -- We wanted it to be Right "\n\r"
+    Right "\n"
+-}
+
+-- To be ascertained that '\r' is dangling check out this with following code
+-- pass on the remaining of eol to eof (ideally it should work, unless for the
+-- dangling '\r')
+
+{-
+    ghci> parse (eol1 >> eof) "" "\n"
+    Right ()
+    ghci> parse (eol1 >> eof) "" "\n\r"
+    Left (line 2, column 1):
+    unexpected '\r'
+    expecting end of input
+-}
+
+-- So, if we interchange the arguments of (<|>), it should work, right?
+eol2 :: GenParser Char st String
+eol2 = string "\n\r" <|> string "\n"
+-- The left one checks for "\n\r".  So, if there is a '\n' and end of file, it 
+-- fails.  So, it fixes the failing option of eol1 and breaks what was working!
+{-
+    ghci> parse (eol2 >> eof) "" "\n\r"
+    Right ()
+    ghci> parse (eol2 >> eof) "" "\n"
+    Left (line 1, column 1):
+    unexpected end of input
+    expecting "\n\r"
+-}
+
+-- Ideally we wanted to have a look ahead, but string "\n\r" tried consuming 
+-- '\n' only to encounter the EOF to throw an error
+
+eol3 :: GenParser Char st String
+eol3 = do char '\n'         
+          char '\r' <|> return '\n'
+          
+        
