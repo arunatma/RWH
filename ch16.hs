@@ -152,8 +152,8 @@ eol3 =
 -}
 -- Now "\n" and "\n\r" works; But still "\r\n" does not!!
 
--- Now comes the lookahead support!  Look ahead without consumint the characters
--- "try" function 
+-- LookAhead:
+-- Look ahead without consumint the characters using the "try" function 
 -- Takes a function and a parser as arguments.
 -- Applies the parser; If it fails, then behaves as if it has not consumed!
 -- if "try" applied on left side of (<|>), then, even if it fails after 
@@ -188,3 +188,65 @@ parseCSV4 input = parse csvFile4 "(unknown)" input
     ghci> parseCSV4 "line1\r\nline2\nline3\n\rline4\rline5\n"
     Right [["line1"],["line2"],["line3"],["line4"],["line5"]]
 -}
+
+-- The following cases are taken care of
+-- 1. CSV file of 0 or more lines ending with end of line character
+-- 2. A line containing 1 or more cells separated by comma
+-- 3. A cell containing 0 or more characters (except command and EOL)
+-- 4. End of Line character being one of the 4 scenarios.
+
+-- Error Handling:
+-- Providing custom error messages via Parsec
+csvFile5 = endBy line5 eol5
+line5 = sepBy cell5 (char ',')
+cell5 = many (noneOf ",\n\r")
+
+eol5 =   try (string "\n\r")
+     <|> try (string "\r\n")
+     <|> string "\n"
+     <|> string "\r"
+     <|> fail "Could not find EOL"
+     
+parseCSV5 :: String -> Either ParseError [[String]]
+parseCSV5 input = parse csvFile5 "(unknown)" input
+     
+{-  Here is the difference between the two functions
+
+    ghci> parseCSV4 "line1"
+    Left "(unknown)" (line 1, column 6):
+    unexpected end of input
+    expecting ",", "\n\r", "\r\n", "\n" or "\r"
+
+    ghci> parseCSV5 "line1"
+    Left "(unknown)" (line 1, column 6):
+    unexpected end of input
+    expecting ",", "\n\r", "\r\n", "\n" or "\r"
+    Could not find EOL
+
+-}     
+
+-- Still it prints out all the options present in eol5
+-- Usage of (<?>) - Prints only the message and not the parser trials
+-- Here "fail" function is not used 
+
+csvFile6 = endBy line6 eol6
+line6 = sepBy cell6 (char ',')
+cell6 = many (noneOf ",\n\r")
+
+eol6 =   try (string "\n\r")
+     <|> try (string "\r\n")
+     <|> string "\n"
+     <|> string "\r"
+     <?> "End of Line"
+     
+parseCSV6 :: String -> Either ParseError [[String]]
+parseCSV6 input = parse csvFile6 "(unknown)" input
+
+{-
+    *Main> parseCSV6 "line1"
+    Left "(unknown)" (line 1, column 6):
+    unexpected end of input
+    expecting "," or End of Line
+-}
+
+-- See csvParser.hs for the full CSV Parser (Extended Example)
