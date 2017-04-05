@@ -8,6 +8,7 @@
 -- Performs both lexical analysis and parsing
 
 import Text.ParserCombinators.Parsec
+import Numeric (readHex)
 
 -- Simple CSV Parsing
 
@@ -250,3 +251,48 @@ parseCSV6 input = parse csvFile6 "(unknown)" input
 -}
 
 -- See csvParser.hs for the full CSV Parser (Extended Example)
+
+-- Parsec and MonadPlus
+-- Parsec is an instance of MonadPlus
+{- already defined in the library
+    instance MonadPlus (GenParser tok st) where
+        mzero = fail "mzero"
+        mplus = (<|>)
+-}
+    
+-- Parsing an URL encoded query string
+p_query :: CharParser () [(String, Maybe String)]
+p_query = p_pair `sepBy` char '&'
+
+-- [(key, value)] pair is given an optional value using Maybe 
+-- That is because HTTP specification is unclear about whether key must have 
+-- an associated value 
+
+p_pair :: CharParser () (String, Maybe String)
+p_pair = do
+    name <- many1 p_char
+    value <- optionMaybe (char '=' >> many p_char)
+    return (name, value)
+-- difference between many and many1
+-- many : returns an empty list if the parser does not succed 
+-- many1: returns a list with min 1 element (success); fails for [] case of many
+
+-- optionMaybe : gives a 'Nothing' value if the parser fails 
+
+p_char :: CharParser () Char
+p_char = oneOf urlBaseChars
+       <|> (char '+' >> return ' ')
+       <|> p_hex
+
+urlBaseChars = ['a'..'z']++['A'..'Z']++['0'..'9']++"$-_.!*'(),"
+
+p_hex :: CharParser () Char
+p_hex = do
+    char '%'
+    a <- hexDigit
+    b <- hexDigit
+    let ((d, _):_) = readHex [a, b]
+    return . toEnum $ d
+    
+
+       
