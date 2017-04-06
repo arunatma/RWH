@@ -9,6 +9,8 @@
 
 import Text.ParserCombinators.Parsec
 import Numeric (readHex)
+import Control.Monad (liftM2)
+import Control.Applicative (liftA2)
 
 -- Simple CSV Parsing
 
@@ -244,7 +246,7 @@ parseCSV6 :: String -> Either ParseError [[String]]
 parseCSV6 input = parse csvFile6 "(unknown)" input
 
 {-
-    *Main> parseCSV6 "line1"
+    ghci> parseCSV6 "line1"
     Left "(unknown)" (line 1, column 6):
     unexpected end of input
     expecting "," or End of Line
@@ -294,3 +296,81 @@ p_hex = do
     let ((d, _):_) = readHex [a, b]
     return . toEnum $ d
 
+{-
+    ghci> parseTest p_query "foo=bar&a%21=b+c"
+    [("foo",Just "bar"),("a!",Just "b c")]
+-}
+
+-- Supplanting regular expressions for casual parsing
+-- Other languages: Use of regular expressions for 'casual' parsing 
+-- Hard to write, difficult to debug and non-readable after a few days!!
+
+-- Parsec parsers are not as concise as regex parsers but do away with a few of 
+-- the regexp limitations
+
+-- Rewriting the p_pair function (in applicative style)
+p_pair_app1 :: CharParser () (String, Maybe String)
+p_pair_app1= liftM2 (,) (many1 p_char) (optionMaybe (char '=' >> many p_char))
+-- Here instead of a 'procedural' style, we are 'applying' parsers and 
+-- 'combining' the results
+
+{-
+    ghci> parseTest (p_pair_app1 `sepBy` char '&') "foo=bar&a%21=b+c"
+    [("foo",Just "bar"),("a!",Just "b c")]
+-}
+
+-- Applicative Functors for Parsing
+-- Applicative: More than a Functor and Less than a Monad
+-- Defined in Control.Applicative
+-- This module also defines something called "Alternative"(similar to MonadPlus)
+
+-- See ApplicativeParsec.hs
+-- Throws error as those default applicative and alternative instances are 
+-- already defined (that's how liftM2 from Control.Monad worked above!)
+-- If a monad function works, the applicative function should work 
+
+-- Applicative parsing example
+-- rewriting p_hex
+a_hex :: CharParser () Char
+a_hex = hexify <$> (char '%' *> hexDigit) <*> hexDigit
+    where hexify a b = toEnum . fst . head . readHex $ [a, b]
+
+{-
+    *> is applicative equivalent of >>
+    
+    ghci> :t hexify
+    hexify :: Enum c => Char -> Char -> c
+    
+    ghci> :t (<$>)                              -- Equivalent of fmap
+    (<$>) :: Functor f => (a -> b) -> f a -> f b
+    
+    *Main> :t (char '%' *> hexDigit)
+    (char '%' *> hexDigit) :: m Char
+    
+    -- This is equivalent of f(a -> b)
+    ghci> :t (hexify <$> (char '%' *> hexDigit)) 
+    (hexify <$> (char '%' *> hexDigit)) :: m (Char -> c)
+    
+    ghci> :t (<*>)
+    (<*>) :: Applicative f => f (a -> b) -> f a -> f b
+    
+    ghci> :t hexDigit
+    hexDigit :: m Char 
+    
+    Now we have 
+    m (Char -> c) <*> m Char        -- This gives m c 
+-}    
+
+-- rewriting p_char parser
+a_char :: CharParser () Char
+a_char = oneOf urlBaseChars
+     <|> (' ' <$ char '+')
+     <|> a_hex
+     
+-- <$ uses the value on the left if the right succeeds
+     
+-- Now, p_pair 
+-- a_pair is almost same as p_pair_app1
+a_pair :: CharParser () (String, Maybe String)
+a_pair = liftA2 (,) (many1 a_char) (optionMaybe (char '=' *> many a_char))
+     
