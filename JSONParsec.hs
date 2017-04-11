@@ -94,3 +94,10 @@ p_unicode = char 'u' *> (decode <$> count 4 hexDigit)
     where decode x = toEnum code
               where ((code,_):_) = readHex x
               
+{-
+  ghci> parseTest p_text "{  \"firstName\": \"John\",  \"lastName\": \"Smith\"}"
+  JObject (JObj {fromJObj = [("firstName",JString "John"),("lastName", 
+  JString "Smith")]})
+  
+  ghci> (readFile "sample.json") >>= (parseTest p_text)
+-}

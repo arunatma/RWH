@@ -378,3 +378,5 @@ a_pair = liftA2 (,) (many1 a_char) (optionMaybe (char '=' *> many a_char))
 -- Parsing JSON Data
 -- See JSONParsec.hs
 
+-- Parsing HTTP Request
+-- See HttpRequestParser.hs
