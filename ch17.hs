@@ -1,4 +1,4 @@
-{-# LANGUAGE ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface #-}
 -- Real World Haskell
 -- Chapter 17: Foreign Function Interface
 -- http://book.realworldhaskell.org/read/interfacing-with-c-the-ffi.html
@@ -59,3 +59,33 @@ fastsin x = realToFrac (c_sin (realToFrac x))
 -- using the C sin function on a Haskell list
 listSin = mapM_ (print . fastsin) [0/10, 1/10 .. 10/10]
 
+
+-- Regular Expressions for Haskell - a binding PCRE
+-- Support for Regex is not a part of Haskell Prelude
+
+-- PCRE: Ubiquitous C library implementing Perl style regex
+-- http://www.pcre.org/
+
+-- Some of the Regex options in PCRE 
+{-
+    #define PCRE_CASELESS           0x00000001
+    #define PCRE_MULTILINE          0x00000002
+    #define PCRE_DOTALL             0x00000004
+    #define PCRE_EXTENDED           0x00000008
+-}
+
+-- Using the C Pre processor to use these constants
+-- Include LANGUAGE CPP Pragma 
+
+#define N 16 
+list16 = [1..N]
+
+-- The C preprocessor (CPP) might actually turn the Haskell source invalid. It 
+-- just does blind substitutions
+
+-- Use the binding preprocessor hsc2hs 
+-- We need to create a .hsc file where we can do #include <pcre.h> which is 
+-- invalid in .hs file though it is a preprocessor macro
+
+-- Use hsc2hs 
+-- C> hsc2hs Regex-hsc.hs 
