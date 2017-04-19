@@ -142,4 +142,5 @@ data Regex = Regex !(ForeignPtr PCRE)
         deriving (Eq, Ord, Show)
         
 -- ForeignPtr because we need to manage the underlying memory allocated by C
--- ByteString is for the string representation of the regex that we compiled         
+-- ByteString is for the string representation of the regex that we compiled 
+        
