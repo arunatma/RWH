@@ -1,5 +1,5 @@
 {-# LINE 1 "Regex-hsc.hs" #-}
-{-# LANGUAGE CPP, ForeignFunctionInterface #-}
+{-# LANGUAGE CPP, ForeignFunctionInterface, EmptyDataDecls #-}
 {-# LINE 2 "Regex-hsc.hs" #-}
 -- Real World Haskell
 -- Chapter 17: Foreign Function Interface
@@ -110,4 +110,46 @@ foreign import ccall unsafe "pcre.h pcre_compile"
                    -> Ptr Word8
                    -> IO (Ptr PCRE)
                    
+-- safe and unsafe calls
+-- safe call: inefficient; But Haskell can be safely called back from C
+-- unsafe call: Far less overhead; C code must not call back into Haskell.
+--       The instance of C calling Haskell is rare, so mostly we write 
+--       "unsafe" call.
 
+-- now PCRE is () pointer.  We can make it typed pointer to increase safety
+data PCRE1      -- requires EmptyDataDecls language pragma
+-- no data, we can only use them as pointers!
+
+-- same is achieved using newtype recursive definition, without need of pragma 
+newtype PCRE2 = PCRE (Ptr PCRE)
+-- this can also be used only as pointer as it has no runtime representation
+
+-- In C: Discipline of not dereferencing the PCRE pointer lies with programmer
+-- In Haskell: The type system takes care of that 
+-- If the code compiles, type checker has ensured that the PCRE pointer is not 
+-- dereferenced
+
+-- Memory Management: Using Garbage Collector
+-- Memory needed for the PCRE allocated by library on the C side 
+-- While the call returns to Haskell, the memory will still be in use and not 
+-- deallocated.  We need to deallocate from within Haskell once it is no 
+-- longer needed.
+
+-- Use Haskell garbage collector finalizers and ForeignPtr type
+-- No need to manually deallocate memory (which is originally allocated in C 
+-- using malloc function).  Haskell's garbage collector does the job
+
+-- We can use:
+-- 1. ForeignPtr data type  and 
+-- 2. newForeignPtr :: FinalizerPtr a -> Ptr a -> IO (ForeignPtr a)
+--      Takes two params: FinalizerPtr and a Ptr where memory to be deallocated
+--      Returns a new managed pointer which will have the finalizer run 
+--      once Haskell garbage collector decides the data is no more used 
+
+data Regex = Regex !(ForeignPtr PCRE)
+                   !ByteString
+        deriving (Eq, Ord, Show)
+        
+-- ForeignPtr because we need to manage the underlying memory allocated by C
+-- ByteString is for the string representation of the regex that we compiled 
+        
