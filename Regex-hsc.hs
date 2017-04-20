@@ -10,6 +10,8 @@ module Regex where
 import Foreign
 import Foreign.C.Types
 import Foreign.C.String         -- for CString
+import Data.ByteString.Char8 (ByteString, useAsCString)
+import System.IO.Unsafe
 
 #include "pcre.h"
 
@@ -144,3 +146,88 @@ data Regex = Regex !(ForeignPtr PCRE)
 -- ForeignPtr because we need to manage the underlying memory allocated by C
 -- ByteString is for the string representation of the regex that we compiled 
         
+        
+-- Compilation: Should be referentially transparent (A 1-1 input output)
+-- But the C compiles, stores the compiled output in some memory location and gives
+-- different pointers each time (with the same input)
+-- Failure can happen (if the pattern is invalid) - So provide for error using 
+-- "Either" data type in Haskell
+
+-- compile :: ByteString -> [PCREOption] -> Either String Regex
+
+-- compile will call c_pcre_compile (that takes CString as input)
+-- so we need to convert ByteString to CString
+-- this is present in ByteString module 
+{-
+    useAsCString :: ByteString -> (CString -> IO a) -> IO a
+-}
+-- The second argument is an user-defined fn that takes the resulting converted
+-- CString and produces an IO - Our useAsCString creates a CString which can 
+-- be passed to C as a pointer 
+-- A kind of pseudocode of using the useAsCString function
+{-
+    useAsCString str $ \cstr -> do
+       ... operate on the C string
+       ... return a result
+       
+    -- "$" operator above is to avoid the use of paranthesis
+    -- Enhances readability
+-}
+
+-- Allocating local C data: the Storable class
+-- pcre_compile needs some pointers and arrays to place the return values 
+-- These data will be short-lived. Such short-lived C memory can be allocated 
+-- in Haskell using "alloca"
+{-
+    alloca :: Storable a => (Ptr a -> IO b) -> IO b
+-}
+-- This allocation is similar to local stack variables in other languages
+-- Takes a pointer of specific data type 'a'. Allocated memory gets released
+-- when the scope exits.  
+-- Data type allocated can be inferred from type information, based on the use.
+-- Using the alloca
+{-
+    alloca $ \stringptr -> do
+       ... call some Ptr CString function
+       peek stringptr
+-}
+-- locally allocates a Ptr CString, applies the code block (which calls the C 
+-- fn that modifies the pointer contents).  Dereference the pointer using 
+-- "peek" function
+
+-- So, allocate memory, get the pointer, give it to C, let it modify the 
+-- contents, get back the pointer, get the value back from pointed memory 
+
+compile :: ByteString -> [PCREOption] -> Either String Regex
+compile str flags = unsafePerformIO $ 
+    useAsCString str $ \pattern -> do
+        alloca $ \errptr    -> do
+        alloca $ \erroffset -> do
+            pcre_ptr <- c_pcre_compile pattern (combineOptions flags) errptr erroffset nullPtr
+            if pcre_ptr == nullPtr
+                then do 
+                    err <- peekCString =<< peek errptr
+                    return (Left err)
+                 else do
+                    reg <- newForeignPtr finalizerFree pcre_ptr
+                    return (Right (Regex reg str))
+                    
+
+-- unsafePerformIO - imported from System.IO.Unsafe
+-- unsafePerformIO :: IO a -> a
+-- Takes an IO value and converts to a pure one 
+-- Dangerous Dangerous function!!
+-- It can sidestep the safety guarantees of the Haskell type system!
+
+-- Exists to bind the "known" referentially transparent C code to be bound to 
+-- Haskell. "Haskell Compiler, I know what I am doing, this code is pure"
+-- Using unsafePerformIO, we are asserting that the code is pure
+
+-- There are four parts above:
+-- 1. Marshalling Haskell data to C form    (useAsCString and alloca)
+-- 2. Calling into the C library            (c_pcre_compile)
+-- 3. Checking the return values            (test against nullPtr)
+-- 4. Constructing a Haskell value from the results (dereference)
+
+-- finalizerFree uses the C "free" function to deallocate memory
+
