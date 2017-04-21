@@ -89,3 +89,8 @@ list16 = [1..N]
 
 -- Use hsc2hs 
 -- C> hsc2hs Regex-hsc.hs 
+
+-- This chapter is not yet completed.
+-- C> ghci Regex-hsc_out.hs -lpcre
+-- pcre library cannot be loaded (downloaded the dll and placed in System32
+-- folder and also in the current folder) - The above command crashes
